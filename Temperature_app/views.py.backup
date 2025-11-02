@@ -1,0 +1,3101 @@
+import os
+import subprocess
+import uuid
+import shutil
+from datetime import datetime
+from django.utils import timezone
+from pathlib import Path
+import re
+
+from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
+from openpyxl import Workbook
+from .models import Customer, UploadLog
+from .forms import CustomerSelectionForm, CustomerCreationForm
+
+# === Directories ===
+BASE_DIR = Path(__file__).resolve().parent.parent
+TRACKER_DIR = BASE_DIR / "generated_trackers"
+OLD_TRACKER_DIR = TRACKER_DIR / "old_tracker"
+UPLOAD_DIR = BASE_DIR / "uploaded_files"
+SCRIPT_DIR = BASE_DIR / "Script"
+CUSTOMER_FILES_DIR = BASE_DIR / "customer_files"
+
+os.makedirs(TRACKER_DIR, exist_ok=True)
+os.makedirs(OLD_TRACKER_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(CUSTOMER_FILES_DIR, exist_ok=True)
+
+def create_customer_directory_structure(customer):
+    """Create directory structure for a customer in customer_files"""
+    customer_dir = CUSTOMER_FILES_DIR / customer.name.replace(" ", "_").replace("/", "_")
+    try:
+        customer_dir.mkdir(parents=True, exist_ok=True)
+        (customer_dir / "host_files").mkdir(exist_ok=True)
+        (customer_dir / "tec_reports").mkdir(exist_ok=True)
+        (customer_dir / "generated_trackers").mkdir(exist_ok=True)
+        (customer_dir / "old_trackers").mkdir(exist_ok=True)
+        print(f"✅ Created directory structure for customer: {customer.name}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to create directory structure for {customer.name}: {e}")
+        return False
+
+def delete_all_customer_files(customer):
+    """Delete customer directory and all related files from whole project"""
+    import string
+    
+    # Clean customer name for matching
+    customer_clean = ''.join(c for c in customer.name.lower() if c not in string.punctuation and c != ' ')
+    customer_words = [word.strip().lower() for word in customer.name.split() if len(word.strip()) > 2]
+    
+    def matches_customer(filename):
+        filename_clean = ''.join(c for c in filename.lower() if c not in string.punctuation and c != ' ')
+        return (customer_clean in filename_clean or 
+                any(word in filename_clean for word in customer_words if len(word) > 2))
+    
+    deleted_files = []
+    
+    try:
+        # 1. Delete customer directory from customer_files
+        customer_dir = CUSTOMER_FILES_DIR / customer.name.replace(" ", "_").replace("/", "_")
+        if customer_dir.exists():
+            shutil.rmtree(customer_dir)
+            deleted_files.append(f"Customer directory: {customer_dir}")
+            print(f"✅ Deleted customer directory: {customer_dir}")
+        
+        # 2. Delete related files from uploaded_files
+        for file_path in UPLOAD_DIR.glob("*"):
+            if file_path.is_file() and matches_customer(file_path.name):
+                file_path.unlink()
+                deleted_files.append(f"Upload file: {file_path.name}")
+                print(f"✅ Deleted upload file: {file_path.name}")
+        
+        # 3. Delete related files from Script directory
+        for file_path in SCRIPT_DIR.glob("*"):
+            if file_path.is_file() and matches_customer(file_path.name):
+                file_path.unlink()
+                deleted_files.append(f"Script file: {file_path.name}")
+                print(f"✅ Deleted script file: {file_path.name}")
+        
+        # 4. Delete related files from generated_trackers
+        for file_path in TRACKER_DIR.glob("*"):
+            if file_path.is_file() and matches_customer(file_path.name):
+                file_path.unlink()
+                deleted_files.append(f"Tracker file: {file_path.name}")
+                print(f"✅ Deleted tracker file: {file_path.name}")
+        
+        # 5. Delete related files from old_tracker
+        for file_path in OLD_TRACKER_DIR.glob("*"):
+            if file_path.is_file() and matches_customer(file_path.name):
+                file_path.unlink()
+                deleted_files.append(f"Old tracker file: {file_path.name}")
+                print(f"✅ Deleted old tracker file: {file_path.name}")
+        
+        print(f"✅ Cleanup complete for customer: {customer.name}")
+        return deleted_files
+    
+    except Exception as e:
+        print(f"❌ Error during cleanup for {customer.name}: {e}")
+        return deleted_files
+
+def get_customer_file_path(customer, file_type, filename):
+    """Get customer-specific file path for better organization"""
+    customer_dir = CUSTOMER_FILES_DIR / customer.name.replace(" ", "_").replace("/", "_")
+    customer_dir.mkdir(parents=True, exist_ok=True)
+    
+    type_dirs = {
+        'HOST': 'host_files',
+        'TEC': 'tec_reports',
+        'TRACKER': 'generated_trackers',
+        'OLD_TRACKER': 'old_trackers'
+    }
+    
+    file_dir = customer_dir / type_dirs.get(file_type, 'misc')
+    file_dir.mkdir(exist_ok=True)
+    
+    return file_dir / filename
+
+def preserve_customer_file(customer, file_type, source_path, filename):
+    """Preserve file in customer-specific directory (never deletes existing files)"""
+    try:
+        # Convert to Path object if string
+        if isinstance(source_path, str):
+            source_path = Path(source_path)
+            
+        dest_path = get_customer_file_path(customer, file_type, filename)
+        
+        if source_path.exists():
+            # Always copy - overwrite if exists but don't delete other files
+            shutil.copy2(str(source_path), str(dest_path))
+            print(f"Preserved {file_type} file for {customer.name}: {filename}")
+            return dest_path
+        else:
+            print(f"Source file doesn't exist for preservation: {source_path}")
+    except Exception as e:
+        print(f"Error preserving customer file: {e}")
+    return None
+
+def find_customer_file(customer, file_type, filename):
+    """Find file in customer-specific directory"""
+    customer_file_path = get_customer_file_path(customer, file_type, filename)
+    if customer_file_path.exists():
+        return customer_file_path
+    return None
+
+def sync_all_customer_files(customer, operation_type="general"):
+    """Comprehensive synchronization of all files for a customer"""
+    print(f"🔄 Starting comprehensive file sync for {customer.name} ({operation_type})")
+    sync_results = {
+        'HOST': {'synced': 0, 'errors': []},
+        'TEC': {'synced': 0, 'errors': []},
+        'TRACKER': {'synced': 0, 'errors': []},
+        'OLD_TRACKER': {'synced': 0, 'errors': []}
+    }
+    
+    try:
+        # Sync HOST files from uploaded_files to customer directory
+        host_files = list(UPLOAD_DIR.glob("*host*.xlsx"))
+        for host_file in host_files:
+            # Check if this host file belongs to this customer
+            if validate_filename_contains_customer_name(host_file.name, customer.name):
+                try:
+                    customer_path = preserve_customer_file(customer, 'HOST', host_file, host_file.name)
+                    if customer_path:
+                        sync_results['HOST']['synced'] += 1
+                        print(f"  ✅ HOST: {host_file.name}")
+                except Exception as e:
+                    sync_results['HOST']['errors'].append(f"HOST {host_file.name}: {e}")
+                    print(f"  ❌ HOST: {host_file.name} - {e}")
+        
+        # Sync TEC files from uploaded_files to customer directory
+        tec_records = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='TEC',
+            is_deleted=False
+        )
+        for tec_record in tec_records:
+            source_file = UPLOAD_DIR / tec_record.filename
+            if source_file.exists():
+                try:
+                    customer_path = preserve_customer_file(customer, 'TEC', source_file, tec_record.filename)
+                    if customer_path:
+                        sync_results['TEC']['synced'] += 1
+                        print(f"  ✅ TEC: {tec_record.filename}")
+                except Exception as e:
+                    sync_results['TEC']['errors'].append(f"TEC {tec_record.filename}: {e}")
+                    print(f"  ❌ TEC: {tec_record.filename} - {e}")
+        
+        # Sync TRACKER files from Script directory to customer directory
+        tracker_records = UploadLog.objects.filter(
+            customer=customer,
+            generated_file__isnull=False,
+            is_deleted=False
+        ).exclude(generated_file='').exclude(upload_type='OLD_TRACKER')
+        
+        for tracker_record in tracker_records:
+            source_file = SCRIPT_DIR / tracker_record.generated_file
+            if source_file.exists():
+                try:
+                    customer_path = preserve_customer_file(customer, 'TRACKER', source_file, tracker_record.generated_file)
+                    if customer_path:
+                        sync_results['TRACKER']['synced'] += 1
+                        print(f"  ✅ TRACKER: {tracker_record.generated_file}")
+                except Exception as e:
+                    sync_results['TRACKER']['errors'].append(f"TRACKER {tracker_record.generated_file}: {e}")
+                    print(f"  ❌ TRACKER: {tracker_record.generated_file} - {e}")
+        
+        # Sync OLD_TRACKER files from old_tracker directory to customer directory
+        old_tracker_records = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='OLD_TRACKER',
+            is_deleted=False
+        )
+        
+        for old_record in old_tracker_records:
+            if old_record.generated_file:
+                source_file = OLD_TRACKER_DIR / old_record.generated_file
+                if source_file.exists():
+                    try:
+                        customer_path = preserve_customer_file(customer, 'OLD_TRACKER', source_file, old_record.generated_file)
+                        if customer_path:
+                            sync_results['OLD_TRACKER']['synced'] += 1
+                            print(f"  ✅ OLD_TRACKER: {old_record.generated_file}")
+                    except Exception as e:
+                        sync_results['OLD_TRACKER']['errors'].append(f"OLD_TRACKER {old_record.generated_file}: {e}")
+                        print(f"  ❌ OLD_TRACKER: {old_record.generated_file} - {e}")
+        
+        # Summary
+        total_synced = sum(result['synced'] for result in sync_results.values())
+        total_errors = sum(len(result['errors']) for result in sync_results.values())
+        
+        # NEW: Reverse sync - create database records for orphaned customer files
+        # This prevents the issue where customer files exist but database records are missing
+        customer_dir = CUSTOMER_FILES_DIR / customer.name.replace(" ", "_").replace("/", "_")
+        
+        # Check for orphaned HOST files in customer directory
+        host_dir = customer_dir / "host_files"
+        if host_dir.exists():
+            for host_file in host_dir.glob("*.xlsx"):
+                existing_record = UploadLog.objects.filter(
+                    customer=customer,
+                    filename=host_file.name,
+                    upload_type='HOST',
+                    is_deleted=False
+                ).first()
+                
+                if not existing_record:
+                    # Check if this is the only HOST file for this customer (1-to-1 rule)
+                    host_files_in_dir = list(host_dir.glob("*.xlsx"))
+                    if len(host_files_in_dir) == 1:  # Only create record if this is the single HOST file
+                        try:
+                            # Get file timestamp
+                            file_stats = host_file.stat()
+                            file_time = timezone.datetime.fromtimestamp(file_stats.st_mtime)
+                            file_time = timezone.make_aware(file_time)
+                            
+                            UploadLog.objects.create(
+                                customer=customer,
+                                filename=host_file.name,
+                                upload_type='HOST',
+                                status='Success',
+                                timestamp=file_time
+                            )
+                            print(f"  ✅ REVERSE SYNC: Created missing HOST record: {host_file.name}")
+                            sync_results['HOST']['synced'] += 1
+                        except Exception as e:
+                            print(f"  ❌ REVERSE SYNC: Failed to create HOST record: {e}")
+                            sync_results['HOST']['errors'].append(f"Reverse sync HOST {host_file.name}: {e}")
+                    else:
+                        print(f"  ⚠️ REVERSE SYNC: Multiple HOST files found for {customer.name}, skipping to maintain 1-to-1 rule")
+        
+        # Check for orphaned TEC files in customer directory
+        tec_dir = customer_dir / "tec_reports"
+        if tec_dir.exists():
+            for tec_file in tec_dir.glob("*.xlsx"):
+                existing_record = UploadLog.objects.filter(
+                    customer=customer,
+                    filename=tec_file.name,
+                    upload_type='TEC',
+                    is_deleted=False
+                ).first()
+                
+                if not existing_record:
+                    # Check if this is the only TEC file for this customer (1-to-1 rule)
+                    tec_files_in_dir = list(tec_dir.glob("*.xlsx"))
+                    if len(tec_files_in_dir) == 1:  # Only create record if this is the single TEC file
+                        try:
+                            # Get file timestamp
+                            file_stats = tec_file.stat()
+                            file_time = timezone.datetime.fromtimestamp(file_stats.st_mtime)
+                            file_time = timezone.make_aware(file_time)
+                            
+                            UploadLog.objects.create(
+                                customer=customer,
+                                filename=tec_file.name,
+                                upload_type='TEC',
+                                status='Success',
+                                timestamp=file_time
+                            )
+                            print(f"  ✅ REVERSE SYNC: Created missing TEC record: {tec_file.name}")
+                            sync_results['TEC']['synced'] += 1
+                        except Exception as e:
+                            print(f"  ❌ REVERSE SYNC: Failed to create TEC record: {e}")
+                            sync_results['TEC']['errors'].append(f"Reverse sync TEC {tec_file.name}: {e}")
+                    else:
+                        print(f"  ⚠️ REVERSE SYNC: Multiple TEC files found for {customer.name}, skipping to maintain 1-to-1 rule")
+        
+        # Update totals after reverse sync
+        total_synced = sum(result['synced'] for result in sync_results.values())
+        total_errors = sum(len(result['errors']) for result in sync_results.values())
+        
+        print(f"🎯 Sync complete for {customer.name}: {total_synced} files synced, {total_errors} errors")
+        
+        return sync_results
+        
+    except Exception as e:
+        print(f"❌ Critical error during sync for {customer.name}: {e}")
+        return sync_results
+
+def move_to_old_tracker(tracker_filename, customer_name):
+    """
+    Move existing tracker to old_tracker folder
+    """
+    script_path = SCRIPT_DIR / tracker_filename
+    old_path = OLD_TRACKER_DIR / tracker_filename
+    
+    if script_path.exists():
+        try:
+            shutil.move(str(script_path), str(old_path))
+            print(f"Moved {tracker_filename} to old_tracker folder")
+            return True
+        except Exception as e:
+            print(f"Failed to move {tracker_filename}: {e}")
+            return False
+    return False
+
+def validate_filename_contains_customer_name(filename, customer_name):
+    """
+    Super simple validation: Check if first word of customer name appears in filename (case-insensitive)
+    """
+    # Get first word of customer name
+    first_word = customer_name.split()[0].strip()
+    
+    # Check if first word appears in filename (case-insensitive)
+    result = first_word.lower() in filename.lower()
+    
+    print(f"🔍 SUPER SIMPLE VALIDATION: Customer='{customer_name}', First word='{first_word}', Filename='{filename}', Match={result}")
+    
+    return result
+
+def user_login(request):
+    if request.user.is_authenticated:
+        return redirect('customer_selection')
+
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+
+        if user:
+            login(request, user)
+            return redirect("customer_selection")
+        else:
+            return render(request, "login.html", {"error": "Invalid credentials"})
+
+    return render(request, "login.html")
+
+def user_register(request):
+    if request.user.is_authenticated:
+        return redirect('customer_selection')
+
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        password_confirm = request.POST.get("password_confirm")
+
+        if password != password_confirm:
+            return render(request, "register.html", {"error": "Passwords do not match."})
+
+        if User.objects.filter(username=username).exists():
+            return render(request, "register.html", {"error": "Username already taken."})
+
+        User.objects.create_user(username=username, email=email, password=password)
+        return redirect("login")
+
+    return render(request, "register.html")
+
+def user_logout(request):
+    logout(request)
+    return redirect('login')
+
+@login_required
+def customer_selection_view(request):
+    if request.method == "POST":
+        # Handle customer selection
+        if 'select_customer' in request.POST:
+            form = CustomerSelectionForm(request.POST)
+            if form.is_valid():
+                customer = form.cleaned_data['customer']
+                request.session['selected_customer_id'] = customer.id
+                request.session['selected_customer_name'] = customer.name
+                # Store customer selection time
+                from datetime import datetime
+                import zoneinfo
+                ist = zoneinfo.ZoneInfo('Asia/Kolkata')
+                current_time = datetime.now(ist).strftime('%d-%m-%Y %I:%M %p')
+                request.session['customer_selection_time'] = current_time
+                return redirect('dashboard')
+
+        # Handle customer removal (soft delete)
+        elif 'remove_customer' in request.POST:
+            customer_id = request.POST.get('remove_customer')
+            try:
+                customer_to_remove = Customer.objects.get(id=customer_id)
+                
+                # ✅ Delete all customer-related files from whole project
+                deleted_files = delete_all_customer_files(customer_to_remove)
+                
+                customer_to_remove.soft_delete(user=request.user, reason="Removed from customer selection")
+                return JsonResponse({
+                    "status": "success", 
+                    "message": f"Customer '{customer_to_remove.name}' has been removed. Directory and all related files deleted. Data preserved in database."
+                })
+            except Customer.DoesNotExist:
+                return JsonResponse({"status": "error", "message": "Customer does not exist."})
+
+        # Handle new customer creation
+        elif 'add_customer' in request.POST:
+            customer_form = CustomerCreationForm(request.POST)
+            if customer_form.is_valid():
+                new_customer = customer_form.save()
+                
+                # ✅ Create customer directory structure
+                create_customer_directory_structure(new_customer)
+                
+                request.session['selected_customer_id'] = new_customer.id
+                request.session['selected_customer_name'] = new_customer.name
+                # Store customer selection time
+                from datetime import datetime
+                import zoneinfo
+                ist = zoneinfo.ZoneInfo('Asia/Kolkata')
+                current_time = datetime.now(ist).strftime('%d-%m-%Y %I:%M %p')
+                request.session['customer_selection_time'] = current_time
+                return redirect('dashboard')
+            else:
+                selection_form = CustomerSelectionForm()
+                return render(request, 'customer_selection.html', {
+                    'selection_form': selection_form,
+                    'customer_form': customer_form
+                })
+    
+    selection_form = CustomerSelectionForm()
+    customer_form = CustomerCreationForm()
+    return render(request, 'customer_selection.html', {
+        'selection_form': selection_form,
+        'customer_form': customer_form
+    })
+
+@login_required
+def dashboard_view(request):
+    # Check if customer is selected
+    if 'selected_customer_id' not in request.session:
+        return redirect('customer_selection')
+    
+    selected_customer_id = request.session.get('selected_customer_id')
+    selected_customer_name = request.session.get('selected_customer_name')
+    
+    # Verify customer still exists
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+    except Customer.DoesNotExist:
+        # Customer was deleted, redirect to selection
+        del request.session['selected_customer_id']
+        del request.session['selected_customer_name']
+        return redirect('customer_selection')
+    
+    return render(request, "dashboard.html", {
+        'selected_customer': customer
+    })
+
+def download_tracker_file(request):
+    filename = request.GET.get("filename")
+    if not filename:
+        return HttpResponse("No filename provided", status=400)
+    
+    print(f"🔍 DOWNLOAD REQUEST: {filename}")
+    print(f"🔍 REQUEST METHOD: {request.method}")
+    print(f"🔍 REQUEST PATH: {request.path}")
+    print(f"📁 UPLOAD_DIR: {UPLOAD_DIR}")
+    print(f"📁 SCRIPT_DIR: {SCRIPT_DIR}")
+    print(f"📁 OLD_TRACKER_DIR: {OLD_TRACKER_DIR}")
+    
+    # List all files in UPLOAD_DIR for debugging
+    if UPLOAD_DIR.exists():
+        all_files = list(UPLOAD_DIR.glob("*"))
+        print(f"📋 All files in UPLOAD_DIR: {[f.name for f in all_files]}")
+    else:
+        print(f"❌ UPLOAD_DIR does not exist: {UPLOAD_DIR}")
+    
+    # First check if this is a host or report file - check UPLOAD_DIR first
+    upload_file_path = UPLOAD_DIR / filename
+    print(f"🔍 Checking UPLOAD_DIR path: {upload_file_path}")
+    print(f"📂 UPLOAD_DIR exists: {UPLOAD_DIR.exists()}")
+    print(f"📄 File exists: {upload_file_path.exists()}")
+    
+    if upload_file_path.exists():
+        print(f"✅ Found host/report file in upload dir: {upload_file_path}")
+        try:
+            response = FileResponse(
+                open(upload_file_path, "rb"),
+                as_attachment=True,
+                filename=filename,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            print(f"✅ Successfully created FileResponse for: {filename}")
+            return response
+        except Exception as e:
+            print(f"❌ Error creating FileResponse: {e}")
+            return HttpResponse(f"Error downloading file: {str(e)}", status=500)
+    
+    # Check for timestamped versions of files in upload directory
+    from pathlib import Path
+    base_name = Path(filename).stem
+    extension = Path(filename).suffix
+    print(f"🔍 Looking for timestamped files: *{base_name}*{extension}")
+    timestamped_files = list(UPLOAD_DIR.glob(f"*{base_name}*{extension}"))
+    print(f"📋 Found timestamped files: {[f.name for f in timestamped_files]}")
+    
+    if timestamped_files:
+        # Get the most recent file
+        latest_file = max(timestamped_files, key=lambda f: f.stat().st_mtime)
+        print(f"✅ Found timestamped host/report file in upload dir: {latest_file}")
+        try:
+            response = FileResponse(
+                open(latest_file, "rb"),
+                as_attachment=True,
+                filename=filename,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            print(f"✅ Successfully created FileResponse for timestamped file: {filename}")
+            return response
+        except Exception as e:
+            print(f"❌ Error creating FileResponse for timestamped file: {e}")
+            return HttpResponse(f"Error downloading file: {str(e)}", status=500)
+    
+    # Check customer-specific directories (new fallback)
+    try:
+        # Try to determine customer from session or filename
+        selected_customer_id = request.session.get('selected_customer_id')
+        if selected_customer_id:
+            customer = Customer.objects.get(id=selected_customer_id)
+            
+            # Check if this is a HOST file in customer directory
+            customer_host_file = find_customer_file(customer, 'HOST', filename)
+            if customer_host_file:
+                print(f"✅ Found HOST file in customer directory: {customer_host_file}")
+                response = FileResponse(
+                    open(customer_host_file, "rb"),
+                    as_attachment=True,
+                    filename=filename,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            
+            # Check if this is a TEC file in customer directory
+            customer_tec_file = find_customer_file(customer, 'TEC', filename)
+            if customer_tec_file:
+                print(f"✅ Found TEC file in customer directory: {customer_tec_file}")
+                response = FileResponse(
+                    open(customer_tec_file, "rb"),
+                    as_attachment=True,
+                    filename=filename,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+    except Exception as e:
+        print(f"Error checking customer directories: {e}")
+    
+    # Try Script directory for current trackers
+    script_file_path = SCRIPT_DIR / filename
+    if script_file_path.exists():
+        print(f"Found tracker in script dir: {script_file_path}")
+        response = FileResponse(open(script_file_path, "rb"), as_attachment=True, filename=filename)
+        response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        return response
+    
+    # Try old_tracker directory for old trackers
+    old_tracker_path = OLD_TRACKER_DIR / filename
+    if old_tracker_path.exists():
+        print(f"Found old tracker in old_tracker dir: {old_tracker_path}")
+        # For old trackers, use the original filename for download (without timestamp)
+        original_filename = filename
+        if "_202" in filename:
+            # Remove timestamp from download filename
+            parts = filename.split('_202')
+            if len(parts) > 1:
+                original_filename = parts[0] + '.xlsx'
+        
+        response = FileResponse(open(old_tracker_path, "rb"), as_attachment=True, filename=original_filename)
+        response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response['Content-Disposition'] = f'attachment; filename="{original_filename}"'
+        return response
+    
+    # Fall back to generated_trackers directory
+    tracker_file_path = TRACKER_DIR / filename
+    if tracker_file_path.exists():
+        print(f"Found tracker in tracker dir: {tracker_file_path}")
+        response = FileResponse(open(tracker_file_path, "rb"), as_attachment=True, filename=filename)
+        response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        return response
+    
+    print(f"File not found: {filename}")
+    return HttpResponse(f"File '{filename}' not found", status=404)
+
+@login_required
+def upload_report_file(request):
+    # Check if customer is selected
+    if 'selected_customer_id' not in request.session:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    if request.method == "POST":
+        report_file = request.FILES.get("tec_report")
+        threshold = request.POST.get("threshold")
+        
+        print(f"=== TEC UPLOAD START ===")
+        print(f"File received: {report_file.name if report_file else 'None'}")
+        print(f"Threshold: {threshold}")
+        
+        selected_customer_id = request.session.get('selected_customer_id')
+        try:
+            customer = Customer.objects.get(id=selected_customer_id)
+            print(f"Customer: {customer.name} (ID: {customer.id})")
+        except Customer.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+
+        if not report_file:
+            return JsonResponse({"status": "error", "message": "No file uploaded"})
+        
+        # Check if filename contains customer name
+        if not validate_filename_contains_customer_name(report_file.name, customer.name):
+            return JsonResponse({
+                "status": "error", 
+                "message": f"File name must contain customer name '{customer.name}'. Please rename your file to include the customer name."
+            })
+        
+        # Check if the file is a report file (not a host file) - strict validation
+        if "host" in report_file.name.lower():
+            return JsonResponse({
+                "status": "error", 
+                "message": f"Please upload REPORT file only for {customer.name}, not host file."
+            })
+        
+        # Ensure it's a proper report file
+        filename_lower = report_file.name.lower()
+        if not ("report" in filename_lower or "temp" in filename_lower or "tracker" in filename_lower):
+            return JsonResponse({
+                "status": "error", 
+                "message": f"Please upload a proper REPORT file for {customer.name}. File should contain 'report', 'temp', or 'tracker' in name."
+            })
+        
+        # Ensure it's an Excel file
+        if not filename_lower.endswith('.xlsx'):
+            return JsonResponse({
+                "status": "error", 
+                "message": "Please upload an Excel (.xlsx) file."
+            })
+        
+        print(f"TEC file validation passed for: {report_file.name}")
+        print(f"Customer: {customer.name}")
+
+        if not threshold:
+            return JsonResponse({"status": "error", "message": "Threshold value required"})
+
+        try:
+            threshold = int(threshold)
+        except ValueError:
+            return JsonResponse({"status": "error", "message": "Threshold must be a number"})
+
+        if threshold < 20 or threshold > 50:
+            return JsonResponse({"status": "error", "message": "Threshold must be between 20 and 50 °C"})
+
+        # Preserve file immediately on upload
+        report_path = UPLOAD_DIR / report_file.name
+        with open(report_path, "wb") as f:
+            for chunk in report_file.chunks():
+                f.write(chunk)
+        
+        # IMMEDIATELY preserve TEC report in customer directory
+        preserve_customer_file(customer, 'TEC', report_path, report_file.name)
+        print(f"✅ TEC report preserved in customer directory: {report_file.name}")
+        
+        # CREATE OR UPDATE TEC RECORD
+        existing_tec = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='TEC',
+            is_deleted=False
+        ).order_by('-timestamp').first()
+        
+        if existing_tec:
+            # Update existing record
+            existing_tec.filename = report_file.name
+            existing_tec.threshold = threshold
+            existing_tec.status = 'Processing'
+            existing_tec.timestamp = timezone.now()
+            existing_tec.generated_file = None
+            existing_tec.save()
+            upload_log = existing_tec
+            print(f"📝 UPDATED existing TEC record: {existing_tec.id}")
+        else:
+            # Create new record
+            upload_log = UploadLog.objects.create(
+                filename=report_file.name,
+                upload_type='TEC',
+                status='Processing',
+                customer=customer,
+                threshold=threshold
+            )
+            print(f"🆕 CREATED new TEC record: {upload_log.id}")
+
+        print(f"Processing TEC report: {report_file.name} for customer: {customer.name}")
+        print(f"Threshold: {threshold}")
+        print(f"Report saved to: {report_path}")
+
+        try:
+            result = subprocess.run(
+                ["python", "Script/main_script.py", str(threshold)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+                cwd=BASE_DIR  # Set working directory
+            )
+            print(f"Main script exit code: {result.returncode}")
+            print(f"Main script stdout: {result.stdout}")
+            print(f"Main script stderr: {result.stderr}")
+        except Exception as e:
+            print(f"Exception running main script: {str(e)}")
+            upload_log.status = 'Failed'
+            upload_log.save()
+            return JsonResponse({"status": "error", "message": f"Script execution failed: {str(e)}"})
+
+        # Check if the script ran successfully
+        if result.returncode != 0:
+            # Check if error is due to missing tracker (need host file first)
+            if "Please upload a host file first" in result.stdout:
+                upload_log.status = 'Pending'
+                upload_log.save()
+                return JsonResponse({
+                    "status": "pending",
+                    "message": "TEC report uploaded successfully. Please upload Host file first to create the tracker.",
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                })
+            
+            upload_log.status = 'Failed'
+            upload_log.save()
+            return JsonResponse({
+                "status": "error",
+                "message": f"Main script failed with exit code {result.returncode}",
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            })
+
+        
+        tracker_files = list(SCRIPT_DIR.glob("*.xlsx"))
+        if tracker_files:
+            # Better network name extraction - same logic as main_script.py
+            def extract_network_name(filename):
+                if "_Reports_" in filename:
+                    return filename.split("_Reports_")[0]
+                elif "Reports" in filename:
+                    reports_index = filename.find("Reports")
+                    return filename[:reports_index].rstrip("_")
+                else:
+                    return filename[: (filename.rfind("_") - 8)] if "_" in filename else filename.split(".")[0]
+            
+            def normalize_network_name(name):
+                if name.lower().startswith("railtel") or "railtel" in name.lower():
+                    return "Railtel"
+                elif name.lower().startswith("bharti") or "bharti" in name.lower():
+                    return "Bharti_OCS"
+                return name
+            
+            # Extract network name from report file
+            report_network_name = normalize_network_name(extract_network_name(report_file.name))
+            
+            # Create a mapping of tracker files by network name
+            tracker_mapping = {}
+            for file in tracker_files:
+                # Extract network name from tracker filename (remove _Temperature_Tracker.xlsx)
+                tracker_name = file.name.replace("_Temperature_Tracker.xlsx", "")
+                tracker_mapping[tracker_name] = file.name
+            
+            print(f"Looking for network: {report_network_name}")
+            print(f"Available trackers: {list(tracker_mapping.keys())}")
+            print(f"Tracker mapping: {tracker_mapping}")
+
+            if report_network_name in tracker_mapping:
+                name = tracker_mapping[report_network_name]
+                
+                print(f"🎯 REPORT UPLOAD: Found matching tracker {name} for network {report_network_name}")
+                print(f"📊 CUSTOMER INFO: Name='{customer.name}', Network='{report_network_name}', Tracker='{name}'")
+                
+                # Check if there's an existing tracker for this customer BEFORE updating anything
+                existing_tracker = UploadLog.objects.filter(
+                    customer=customer,
+                    generated_file__isnull=False,
+                    is_deleted=False
+                ).exclude(generated_file='').exclude(upload_type='OLD_TRACKER').first()
+                
+                print(f"Existing tracker in tracker_generated: {existing_tracker}")
+                
+                # Check if there's an old tracker (this should stay as is)
+                old_tracker_exists = UploadLog.objects.filter(
+                    customer=customer,
+                    upload_type='OLD_TRACKER',
+                    is_deleted=False
+                ).exists()
+                
+                print(f"Old tracker exists in old_trackers: {old_tracker_exists}")
+                
+                if existing_tracker and existing_tracker.generated_file:
+                    print(f"🔄 MAPPING: Moving existing tracker {existing_tracker.generated_file} to OLD_TRACKER")
+                    
+                    try:
+                        # Always create/update OLD_TRACKER to ensure 1-1 mapping
+                        base_name = existing_tracker.generated_file.replace('.xlsx', '')
+                        old_tracker_filename = f"{base_name}.xlsx"  # Keep original name
+                        
+                        # Copy file to old_tracker directory
+                        script_path = SCRIPT_DIR / existing_tracker.generated_file
+                        old_path = OLD_TRACKER_DIR / old_tracker_filename
+                        
+                        if script_path.exists():
+                            # Remove any existing old tracker file first
+                            if old_path.exists():
+                                old_path.unlink()
+                                print(f"Removed existing old tracker file: {old_tracker_filename}")
+                            
+                            # Copy current tracker to old_tracker directory
+                            shutil.copy2(str(script_path), str(old_path))
+                            print(f"📁 COPIED tracker {existing_tracker.generated_file} to old_tracker as {old_tracker_filename}")
+                            
+                            # Create or update OLD_TRACKER database record
+                            old_tracker_record, created = UploadLog.objects.update_or_create(
+                                customer=customer,
+                                upload_type='OLD_TRACKER',
+                                defaults={
+                                    'filename': existing_tracker.filename or existing_tracker.generated_file,
+                                    'status': 'Success',
+                                    'threshold': threshold,  # Use CURRENT threshold, not previous
+                                    'generated_file': old_tracker_filename,
+                                    'is_deleted': False,
+                                    'timestamp': timezone.now()  # Always use CURRENT time when moved to old_tracker
+                                }
+                            )
+                            # Force save to ensure timestamp is updated
+                            old_tracker_record.timestamp = timezone.now()
+                            old_tracker_record.save()
+                            
+                            # IMPORTANT: Also preserve OLD_TRACKER in customer directory
+                            preserve_customer_file(customer, 'OLD_TRACKER', old_path, old_tracker_filename)
+                            
+                            if created:
+                                print(f"✅ CREATED OLD_TRACKER record: {old_tracker_record.id} -> {old_tracker_filename}")
+                            else:
+                                print(f"✅ UPDATED OLD_TRACKER record: {old_tracker_record.id} -> {old_tracker_filename}")
+                            
+                            # Now soft-delete the old tracker from tracker_generated
+                            existing_tracker.soft_delete(user=request.user if hasattr(request, 'user') else None, reason="Moved to OLD_TRACKER for 1-1 mapping")
+                            print(f"🗑️ SOFT DELETED existing tracker record {existing_tracker.id} from tracker_generated")
+                            
+                        else:
+                            print(f"❌ Script file not found: {script_path}")
+                            
+                    except Exception as e:
+                        print(f"❌ Failed to create 1-1 mapping: {e}")
+                        # If mapping fails, still soft delete to avoid confusion
+                        existing_tracker.soft_delete(user=request.user if hasattr(request, 'user') else None, reason="Mapping failed - cleanup")
+                
+                # Update the upload log with the new tracker
+                upload_log.status = 'Success'
+                upload_log.generated_file = name
+                upload_log.save()
+                
+                # Preserve tracker file in customer-specific directory
+                tracker_path = SCRIPT_DIR / name
+                preserve_customer_file(customer, 'TRACKER', tracker_path, name)
+                
+                # Comprehensive file sync to ensure all files are updated in customer directory
+                sync_all_customer_files(customer, "TEC_report_processing")
+                
+                # IMPORTANT: Copy the updated tracker to old_tracker directory so it's always in sync
+                try:
+                    script_tracker_path = SCRIPT_DIR / name
+                    old_tracker_sync_path = OLD_TRACKER_DIR / name
+                    if script_tracker_path.exists():
+                        shutil.copy2(str(script_tracker_path), str(old_tracker_sync_path))
+                        print(f"✅ SYNCED updated tracker {name} to old_tracker directory")
+                    else:
+                        print(f"⚠️ Warning: Script tracker {name} not found for syncing")
+                except Exception as e:
+                    print(f"⚠️ Warning: Failed to sync updated tracker to old_tracker directory: {e}")
+                
+                print(f"🆕 NEW tracker {name} created and synced to old_tracker directory")
+                
+                # THIRD: Clean up any other old database records for this customer
+                # Only clean up records that are NOT the existing tracker (the one being moved to old_tracker)
+                other_trackers = UploadLog.objects.filter(
+                    customer=customer,
+                    generated_file__isnull=False,
+                    is_deleted=False
+                ).exclude(generated_file='').exclude(id=upload_log.id).exclude(upload_type='OLD_TRACKER')
+                
+                # Only clear generated_file from records that don't match the current existing tracker
+                for other_tracker in other_trackers:
+                    if other_tracker.generated_file and other_tracker.generated_file != name:
+                        # If this is the existing tracker that was moved to old_tracker, 
+                        # keep it for now to show "1 1" initially
+                        if existing_tracker and other_tracker.id != existing_tracker.id:
+                            # Clear the generated_file field but keep the record
+                            other_tracker.generated_file = None
+                            other_tracker.save()
+                            print(f"Cleared generated_file from old record: {other_tracker.id}")
+                
+                # Get updated file count for the customer
+                file_count = UploadLog.objects.filter(
+                    customer=customer,
+                    status='Success',
+                    generated_file__isnull=False
+                ).exclude(generated_file='').count()
+                
+                # ✅ CLEANUP: Delete processed files from uploaded_files for ALL customers
+                print(f"🧹 STARTING CLEANUP for customer: {customer.name}")
+                print(f"🗂️ Report path exists: {report_path.exists() if 'report_path' in locals() else 'report_path not defined'}")
+                
+                try:
+                    # Delete the TEC report file that was just processed
+                    if report_path.exists():
+                        report_path.unlink()
+                        print(f"✅ CLEANED UP: Deleted TEC report from uploaded_files: {report_file.name}")
+                    else:
+                        print(f"❌ CLEANUP FAILED: TEC report file not found: {report_path}")
+                    
+                    # Also clean up any host files for this customer from uploaded_files
+                    host_files_found = list(UPLOAD_DIR.glob("*host*.xlsx"))
+                    print(f"🔍 Found {len(host_files_found)} host files in uploaded_files: {[f.name for f in host_files_found]}")
+                    
+                    for host_file_path in host_files_found:
+                        print(f"🔍 Checking host file: {host_file_path.name} for customer: {customer.name}")
+                        if validate_filename_contains_customer_name(host_file_path.name, customer.name):
+                            host_file_path.unlink()
+                            print(f"✅ CLEANED UP: Deleted HOST file from uploaded_files: {host_file_path.name}")
+                        else:
+                            print(f"⏭️ SKIPPED: Host file {host_file_path.name} doesn't match customer {customer.name}")
+                            
+                except Exception as e:
+                    print(f"❌ CLEANUP ERROR: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                return JsonResponse({
+                    "status": "success",
+                    "message": f"Tracker updated successfully with temperature threshold {threshold}°C.",
+                    "file_url": f"/Script/{name}",
+                    "file_count": file_count,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                })
+            else:
+                upload_log.status = 'Pending'
+                upload_log.save()
+                return JsonResponse({
+                    "status": "pending",
+                    "message": "TEC report processed. Upload Host file to generate tracker.",
+                    "file_url": f"/Script/{report_file.name}",
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                })
+
+        # QUICK FIX: Check if we have existing HOST file and can generate tracker directly
+        existing_host = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='HOST',
+            is_deleted=False
+        ).order_by('-timestamp').first()
+        
+        old_tracker_exists = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='OLD_TRACKER',
+            is_deleted=False
+        ).exists()
+        
+        print(f"🔍 QUICK CHECK: existing_host={existing_host}, old_tracker_exists={old_tracker_exists}")
+        
+        if existing_host and old_tracker_exists:
+            # We have both HOST file and old tracker, so we can generate new tracker directly!
+            print(f"✅ QUICK FIX: Found existing HOST file and old_tracker, generating tracker directly!")
+            
+            try:
+                # Run host script to generate tracker
+                host_path = UPLOAD_DIR / existing_host.filename
+                if host_path.exists():
+                    result_host = subprocess.run(
+                        ["python", "Script/shelf-data-generate.py", str(host_path)],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=BASE_DIR
+                    )
+                    
+                    # Check for generated tracker
+                    tracker_files_new = list(TRACKER_DIR.glob("*.xlsx"))
+                    if tracker_files_new:
+                        latest_file = sorted(tracker_files_new, key=os.path.getmtime)[-1]
+                        
+                        # Copy to Script directory
+                        dest_file = SCRIPT_DIR / latest_file.name
+                        shutil.copy2(latest_file, dest_file)
+                        
+                        # Update upload log
+                        upload_log.status = 'Success'
+                        upload_log.generated_file = latest_file.name
+                        upload_log.save()
+                        
+                        # Run temperature processing
+                        temp_result = subprocess.run(
+                            ["python", "Script/main_script.py", str(threshold)],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            check=False,
+                            cwd=BASE_DIR
+                        )
+                        
+                        print(f"🎯 QUICK FIX SUCCESS: Generated tracker {latest_file.name} using existing host file!")
+                        
+                        return JsonResponse({
+                            "status": "success",
+                            "message": f"Tracker generated successfully using existing host file with temperature threshold {threshold}°C.",
+                            "file_url": f"/Script/{latest_file.name}",
+                            "stdout": result.stdout + "\n" + temp_result.stdout,
+                            "stderr": result.stderr + "\n" + temp_result.stderr
+                        })
+            except Exception as e:
+                print(f"❌ QUICK FIX FAILED: {e}")
+        
+        # Original logic - ask for host file
+        upload_log.status = 'Pending'
+        upload_log.save()
+        return JsonResponse({
+            "status": "pending",
+            "message": "TEC report processed successfully. Please upload Host file to generate tracker.",
+            "file_url": f"/Script/",
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        })
+
+    return JsonResponse({"status": "error", "message": "Invalid request method"})
+
+  
+
+@login_required
+def upload_host_file(request):
+    # Check if customer is selected
+    if 'selected_customer_id' not in request.session:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    if request.method == "POST":
+        host_file = request.FILES.get("host_file")
+        if not host_file:
+            return JsonResponse({"status": "error", "message": "No file uploaded"})
+            
+        selected_customer_id = request.session.get('selected_customer_id')
+        try:
+            customer = Customer.objects.get(id=selected_customer_id)
+        except Customer.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+            
+        # Check if filename contains customer name
+        if not validate_filename_contains_customer_name(host_file.name, customer.name):
+            return JsonResponse({
+                "status": "error", 
+                "message": f"File name must contain customer name '{customer.name}'. Please rename your file to include the customer name."
+            })
+        
+        # Check if the file is a host file (not a report file)
+        if "Reports" in host_file.name or "Report" in host_file.name:
+            return JsonResponse({
+                "status": "error", 
+                "message": "Please upload HOST file only, not report file."
+            })
+        
+        # Check if the file contains "host" (strict validation)
+        if "host" not in host_file.name.lower():
+            return JsonResponse({
+                "status": "error", 
+                "message": f"Please upload HOST file only for {customer.name}. Filename must contain 'host'."
+            })
+
+        # Save host file with original name in uploaded_files directory
+        host_path = UPLOAD_DIR / host_file.name
+        
+        # If file already exists, remove it first
+        if host_path.exists():
+            host_path.unlink()
+            print(f"Removed existing host file: {host_path}")
+
+        with open(host_path, "wb") as f:
+            for chunk in host_file.chunks():
+                f.write(chunk)
+        
+        # IMMEDIATELY preserve host file in customer-specific directory
+        preserve_customer_file(customer, 'HOST', host_path, host_file.name)
+        print(f"✅ HOST file preserved in customer directory: {host_file.name}")
+        
+        # Host files should stay in uploaded_files directory, not copied to Script
+        print(f"Host file {host_file.name} saved to uploaded_files directory and preserved for {customer.name}")
+        
+        # Get the threshold from the most recent TEC upload for this customer
+        threshold = None
+        recent_tec_upload = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='TEC',
+            threshold__isnull=False
+        ).order_by('-timestamp').first()
+        
+        if recent_tec_upload:
+            threshold = recent_tec_upload.threshold
+        
+        # Check if there are any existing TEC reports or old trackers for this customer
+        has_existing_tec_reports = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='TEC',
+            is_deleted=False
+        ).exists()
+        
+        has_existing_trackers = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='OLD_TRACKER',
+            is_deleted=False
+        ).exists()
+        
+        print(f"🔍 HOST UPLOAD CHECK: has_tec_reports={has_existing_tec_reports}, has_trackers={has_existing_trackers}, threshold={threshold}")
+    
+        # Check if similar host file already exists for this customer (get the most recent one)
+        existing_host = UploadLog.objects.filter(
+            customer=customer,
+            upload_type='HOST',
+            is_deleted=False
+        ).order_by('-timestamp').first()
+        
+        if existing_host:
+            # UPDATE LOGIC: Replace existing HOST file instead of creating new one
+            
+            # Remove old HOST file from customer directory first
+            old_customer_file = get_customer_file_path(customer, 'HOST', existing_host.filename)
+            if old_customer_file.exists():
+                try:
+                    old_customer_file.unlink()
+                    print(f"Removed old HOST file from customer directory: {existing_host.filename}")
+                except Exception as e:
+                    print(f"Warning: Could not remove old HOST file: {e}")
+            
+            # Update existing record with new file info
+            existing_host.filename = host_file.name
+            existing_host.threshold = threshold
+            existing_host.status = 'Processing'
+            existing_host.timestamp = timezone.now()
+            existing_host.save()
+            upload_log = existing_host
+            print(f"📝 UPDATED existing HOST record: {existing_host.id} -> {host_file.name}")
+            
+            # Keep all HOST files visible - do not soft delete them
+            # other_hosts = UploadLog.objects.filter(
+            #     customer=customer,
+            #     upload_type='HOST',
+            #     is_deleted=False
+            # ).exclude(id=existing_host.id)
+            # 
+            # for other_host in other_hosts:
+            #     other_host.soft_delete(reason="Duplicate HOST file - keeping most recent")
+            #     print(f"Soft deleted duplicate HOST file: {other_host.id}")
+            
+            print(f"Keeping all HOST files visible for customer: {customer.name}")
+            
+            # Also clear generated_file from any TEC records for this customer to avoid duplicate trackers
+            tec_records = UploadLog.objects.filter(
+                customer=customer,
+                upload_type='TEC',
+                is_deleted=False,
+                generated_file__isnull=False
+            ).exclude(generated_file='')
+            
+            for tec_record in tec_records:
+                tec_record.generated_file = None
+                tec_record.save()
+                print(f"Cleared generated_file from TEC record: {tec_record.id}")
+        else:
+            # Create new host file log
+            upload_log = UploadLog.objects.create(
+                filename=host_file.name,
+                upload_type='HOST',
+                status='Processing',
+                customer=customer,
+                threshold=threshold  # Store the threshold from the recent TEC upload
+            )
+            print(f"Created new HOST file: {upload_log.id}")
+
+        try:
+            result = subprocess.run(
+                ["python", "Script/shelf-data-generate.py", str(host_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=BASE_DIR  # Set working directory
+            )
+            print(f"Host script exit code: {result.returncode}")
+            print(f"Host script stdout: {result.stdout.decode()}")
+            print(f"Host script stderr: {result.stderr.decode()}")
+        except Exception as e:
+            upload_log.status = 'Failed'
+            upload_log.save()
+            return JsonResponse({"status": "error", "message": f"Script failed: {str(e)}"})
+
+        tracker_files = list(TRACKER_DIR.glob("*.xlsx"))
+        if tracker_files:
+            print(tracker_files)
+            print("Tracker generated-------")
+            latest_file = sorted(tracker_files, key=os.path.getmtime)[-1]
+            
+            # Clean up old tracker files for this customer AFTER successfully creating new one
+            
+            dest_file = os.path.join(SCRIPT_DIR, latest_file.name)
+            try:
+                shutil.copy2(latest_file, dest_file)
+                print(f"Successfully copied {latest_file} to {dest_file}")
+                
+                # Comprehensive file sync to ensure all files are updated in customer directory
+                sync_all_customer_files(customer, "host_upload_processing")
+                
+            except Exception as e:
+                print(f"Failed to copy {latest_file} to {dest_file}: {e}")
+                # Try to create the script directory if it doesn't exist
+                os.makedirs(SCRIPT_DIR, exist_ok=True)
+                shutil.copy2(latest_file, dest_file)
+                print(f"Created directory and copied {latest_file} to {dest_file}")
+                
+                # Comprehensive file sync after recovery
+                sync_all_customer_files(customer, "host_upload_recovery")
+            
+            # If we have a threshold, run the main script to process temperature data
+            if threshold:
+                try:
+                    # Check for pending TEC reports first
+                    pending_tec_reports = UploadLog.objects.filter(
+                        customer=customer,
+                        upload_type='TEC',
+                        status='Pending'
+                    )
+                    
+                    # Run main script only once - either for pending reports or current threshold
+                    if pending_tec_reports.exists():
+                        # Process pending TEC reports
+                        for pending_report in pending_tec_reports:
+                            print(f"Processing pending TEC report: {pending_report.filename}")
+                            try:
+                                temp_result = subprocess.run(
+                                    ["python", "Script/main_script.py", str(pending_report.threshold or threshold)],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True,
+                                    check=False
+                                )
+                                if temp_result.returncode == 0:
+                                    pending_report.status = 'Success'
+                                    pending_report.save()
+                                    print(f"Successfully processed pending TEC report: {pending_report.filename}")
+                            except Exception as e:
+                                print(f"Error processing pending TEC report: {e}")
+                    else:
+                        # No pending reports, run with current threshold
+                        temp_result = subprocess.run(
+                            ["python", "Script/main_script.py", str(threshold)],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            check=False
+                        )
+                    
+                    # Check if the main script updated the tracker with temperature data
+                    updated_tracker_files = list(SCRIPT_DIR.glob("*.xlsx"))
+                    if updated_tracker_files:
+                        # Find the updated tracker file
+                        for updated_file in updated_tracker_files:
+                            if updated_file.name == latest_file.name:
+                                latest_file = updated_file
+                                break
+                        
+                        # Simple synchronization: copy current tracker to old_tracker directory with same name
+                        old_tracker_path = OLD_TRACKER_DIR / latest_file.name
+                        try:
+                            shutil.copy2(latest_file, old_tracker_path)
+                            print(f"Copied current tracker {latest_file.name} to old_tracker directory")
+                            
+                            # Update or create OLD_TRACKER record (only one per customer)
+                            old_tracker_record, created = UploadLog.objects.update_or_create(
+                                customer=customer,
+                                upload_type='OLD_TRACKER',
+                                defaults={
+                                    'filename': latest_file.name,
+                                    'status': 'Success',
+                                    'threshold': threshold,
+                                    'generated_file': latest_file.name,
+                                    'is_deleted': False,
+                                    'timestamp': timezone.now()  # Always use current time
+                                }
+                            )
+                            # Force timestamp update
+                            old_tracker_record.timestamp = timezone.now()
+                            old_tracker_record.save()
+                            if created:
+                                print(f"Created OLD_TRACKER record with ID: {old_tracker_record.id}")
+                            else:
+                                print(f"Updated OLD_TRACKER record with ID: {old_tracker_record.id}")
+                                    
+                        except Exception as e:
+                            print(f"Failed to copy tracker to old_tracker: {e}")
+                        
+                        # Update the upload log with the new tracker
+                        upload_log.status = 'Success'
+                        upload_log.generated_file = latest_file.name
+                        upload_log.save()
+                        
+                        # IMPORTANT: Copy the updated tracker to old_tracker directory so it's always in sync
+                        try:
+                            final_old_tracker_path = OLD_TRACKER_DIR / latest_file.name
+                            shutil.copy2(str(latest_file), str(final_old_tracker_path))
+                            print(f"✅ SYNCED updated tracker {latest_file.name} to old_tracker directory")
+                        except Exception as e:
+                            print(f"⚠️ Warning: Failed to sync updated tracker to old_tracker directory: {e}")
+                        
+                        # Final comprehensive sync after all processing
+                        sync_all_customer_files(customer, "host_final_processing")
+                        
+                        print(f"NEW tracker {latest_file.name} created and synced to old_tracker directory")
+                        
+                        print(f"NEW tracker {latest_file.name} created and synced to old_tracker directory")
+                        
+                        # THIRD: Clean up any other old database records for this customer
+                        other_trackers = UploadLog.objects.filter(
+                            customer=customer,
+                            generated_file__isnull=False,
+                            is_deleted=False
+                        ).exclude(generated_file='').exclude(id=upload_log.id)
+                        
+                        for other_tracker in other_trackers:
+                            if other_tracker.generated_file and other_tracker.generated_file != latest_file.name:
+                                # Clear the generated_file field but keep the record
+                                other_tracker.generated_file = None
+                                other_tracker.save()
+                                print(f"Cleared generated_file from old record: {other_tracker.id}")
+                        
+                        # Get updated file count for the customer
+                        file_count = UploadLog.objects.filter(
+                            customer=customer,
+                            status='Success',
+                            generated_file__isnull=False
+                        ).exclude(generated_file='').count()
+                        
+                        return JsonResponse({
+                            "status": "success",
+                            "message": f"Tracker generated from Host file with temperature threshold {threshold}°C.",
+                            "file_url": f"/Script/{latest_file.name}",
+                            "file_count": file_count,
+                            "stdout": result.stdout.decode() + "\n\n--- Temperature Processing ---\n" + temp_result.stdout,
+                            "stderr": result.stderr.decode() + "\n\n--- Temperature Processing ---\n" + temp_result.stderr
+                        })
+                except Exception as e:
+                    print(f"Temperature processing failed: {str(e)}")
+                    # Continue with basic tracker if temperature processing fails
+            
+            # Check if there's an existing tracker for this customer
+            existing_tracker = UploadLog.objects.filter(
+                customer=customer,
+                generated_file__isnull=False,
+                is_deleted=False
+            ).exclude(generated_file='').exclude(upload_type='OLD_TRACKER').first()
+            
+            if existing_tracker and existing_tracker.generated_file:
+                print(f"🔄 HOST UPLOAD: Moving existing tracker {existing_tracker.generated_file} to OLD_TRACKER")
+                
+                try:
+                    # Use same 1-1 mapping logic as report upload
+                    base_name = existing_tracker.generated_file.replace('.xlsx', '')
+                    old_tracker_filename = f"{base_name}.xlsx"  # Keep original name
+                    
+                    # Copy file to old_tracker directory
+                    script_path = SCRIPT_DIR / existing_tracker.generated_file
+                    old_path = OLD_TRACKER_DIR / old_tracker_filename
+                    
+                    if script_path.exists():
+                        # Remove any existing old tracker file first
+                        if old_path.exists():
+                            old_path.unlink()
+                            print(f"Removed existing old tracker file: {old_tracker_filename}")
+                        
+                        # Copy current tracker to old_tracker directory
+                        shutil.copy2(str(script_path), str(old_path))
+                        print(f"📁 COPIED tracker {existing_tracker.generated_file} to old_tracker as {old_tracker_filename}")
+                        
+                        # Create or update OLD_TRACKER database record
+                        old_tracker_record, created = UploadLog.objects.update_or_create(
+                            customer=customer,
+                            upload_type='OLD_TRACKER',
+                            defaults={
+                                'filename': existing_tracker.filename or existing_tracker.generated_file,
+                                'status': 'Success',
+                                'threshold': threshold,  # Use CURRENT threshold, not previous
+                                'generated_file': old_tracker_filename,
+                                'is_deleted': False,
+                                'timestamp': timezone.now()  # Always use CURRENT time when moved to old_tracker
+                            }
+                        )
+                        # Force save to ensure timestamp is updated
+                        old_tracker_record.timestamp = timezone.now()
+                        old_tracker_record.save()
+                        
+                        # IMPORTANT: Also preserve OLD_TRACKER in customer directory
+                        preserve_customer_file(customer, 'OLD_TRACKER', old_path, old_tracker_filename)
+                        
+                        if created:
+                            print(f"✅ CREATED OLD_TRACKER record: {old_tracker_record.id} -> {old_tracker_filename}")
+                        else:
+                            print(f"✅ UPDATED OLD_TRACKER record: {old_tracker_record.id} -> {old_tracker_filename}")
+                        
+                        # Now soft-delete the old tracker from tracker_generated
+                        existing_tracker.soft_delete(user=request.user if hasattr(request, 'user') else None, reason="HOST: Moved to OLD_TRACKER for 1-1 mapping")
+                        print(f"🗑️ HOST: SOFT DELETED existing tracker record {existing_tracker.id} from tracker_generated")
+                        
+                    else:
+                        print(f"❌ HOST: Script file not found: {script_path}")
+                        
+                except Exception as e:
+                    print(f"❌ HOST: Failed to create 1-1 mapping: {e}")
+                    # If mapping fails, still soft delete to avoid confusion
+                    existing_tracker.soft_delete(user=request.user if hasattr(request, 'user') else None, reason="HOST: Mapping failed - cleanup")
+            
+            # Update the upload log with the new tracker
+            upload_log.status = 'Success'
+            upload_log.generated_file = latest_file.name
+            upload_log.save()
+            
+            print(f"🆕 NEW tracker {latest_file.name} created in Script directory ONLY (no duplication)")
+            
+            # THIRD: Clean up any other old database records for this customer
+            other_trackers = UploadLog.objects.filter(
+                customer=customer,
+                generated_file__isnull=False,
+                is_deleted=False
+            ).exclude(generated_file='').exclude(id=upload_log.id)
+            
+            for other_tracker in other_trackers:
+                if other_tracker.generated_file and other_tracker.generated_file != latest_file.name:
+                    # Clear the generated_file field but keep the record
+                    other_tracker.generated_file = None
+                    other_tracker.save()
+                    print(f"Cleared generated_file from old record: {other_tracker.id}")
+            
+            # Get updated file count for the customer
+            file_count = UploadLog.objects.filter(
+                customer=customer,
+                status='Success',
+                generated_file__isnull=False
+            ).exclude(generated_file='').count()
+            
+            return JsonResponse({
+                "status": "success",
+                "message": "Tracker generated from Host file.",
+                "file_url": f"/Script/{latest_file.name}",
+                "file_count": file_count,
+                "stdout": result.stdout.decode(),
+                "stderr": result.stderr.decode()
+            })
+        else:
+            return JsonResponse({
+                "status": "error",
+                "message": "Tracker not generated after host upload.",
+                "stdout": result.stdout.decode(),
+                "stderr": result.stderr.decode()
+            })
+
+    return JsonResponse({"status": "error", "message": "Invalid request method"})
+
+def migrate_tracker_upload_types_internal():
+    """
+    Internal function to migrate existing tracker uploads that were incorrectly marked as TEC type
+    """
+    # Find records that have generated_file but are marked as TEC and the generated_file looks like a tracker
+    tracker_records = UploadLog.objects.filter(
+        upload_type='TEC',
+        generated_file__isnull=False,
+        is_deleted=False
+    ).exclude(generated_file='')
+    
+    migrated_count = 0
+    for record in tracker_records:
+        # Check if the generated_file is the same as filename (indicating direct upload)
+        # or if the filename looks like a tracker rather than a TEC report
+        if (record.generated_file == record.filename and 
+            'tracker' in record.filename.lower() and 
+            'report' not in record.filename.lower()):
+            
+            # Also check if the file exists in Script directory (where trackers are stored)
+            tracker_path = SCRIPT_DIR / record.generated_file
+            if tracker_path.exists():
+                print(f"Migrating record {record.id}: {record.filename} from TEC to TRACKER_UPLOAD")
+                record.upload_type = 'TRACKER_UPLOAD'
+                record.save()
+                migrated_count += 1
+    
+    print(f"Migrated {migrated_count} tracker upload records from TEC to TRACKER_UPLOAD type")
+    return migrated_count
+
+@login_required
+def migrate_tracker_upload_types(request):
+    """
+    HTTP endpoint to migrate existing tracker uploads that were incorrectly marked as TEC type
+    """
+    try:
+        migrated_count = migrate_tracker_upload_types_internal()
+        return JsonResponse({
+            "status": "success",
+            "message": f"Successfully migrated {migrated_count} tracker upload records",
+            "migrated_count": migrated_count
+        })
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": f"Migration failed: {str(e)}"
+        })
+
+@login_required
+def tracker_history(request):
+    """
+    Return a JSON with all customers and their files organized by folder structure
+    """
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    # Run migration to fix existing tracker uploads with wrong type
+    migrate_tracker_upload_types_internal()
+    
+    # Get only the selected customer or all customers based on session
+    selected_customer_id = request.session.get('selected_customer_id')
+    
+    if selected_customer_id:
+        # Show only the selected customer
+        try:
+            selected_customer = Customer.objects.get(id=selected_customer_id, is_deleted=False)
+            customers = [selected_customer]
+        except Customer.DoesNotExist:
+            customers = []
+    else:
+        # Fallback to all customers if no selection
+        customers = Customer.objects.filter(is_deleted=False).order_by('name')
+    
+    customer_folders = []
+    
+    for customer in customers:
+        # Get all uploads for this customer (excluding soft-deleted ones)
+        all_uploads = UploadLog.objects.filter(
+            customer=customer,
+            is_deleted=False  # Only show non-deleted records
+        ).order_by('-timestamp')
+        
+        # Always show customer, even if no files exist
+        # Get ALL files by type, not just most recent
+        all_host_files = all_uploads.filter(upload_type='HOST')
+        # Only show TEC reports that don't have generated_file or are not uploaded trackers
+        all_report_files = all_uploads.filter(upload_type='TEC').exclude(upload_type='TRACKER_UPLOAD')
+        # Get tracker files from multiple sources: HOST/TEC with generated_file, or direct TRACKER_UPLOAD
+        all_tracker_files = all_uploads.filter(
+            Q(generated_file__isnull=False, status='Success', upload_type__in=['HOST', 'TEC']) |
+            Q(upload_type='TRACKER_UPLOAD', status='Success')
+        ).exclude(generated_file='')
+        
+        host_files = []
+        report_files = []
+        tracker_files = []
+        
+        # Add ALL host files
+        for host_upload in all_host_files:
+            # ALWAYS set file_url for host files to ensure download button shows
+            file_url = f"/download?filename={host_upload.filename}"
+            display_filename = host_upload.filename
+            file_status = "Available"
+            
+            print(f"Processing host file: {host_upload.filename}")
+            print(f"Looking in UPLOAD_DIR: {UPLOAD_DIR}")
+            
+            # Check if original host file exists in uploaded_files directory
+            original_host_path = UPLOAD_DIR / host_upload.filename
+            print(f"Checking path: {original_host_path}")
+            
+            if original_host_path.exists():
+                # File exists - use original filename
+                file_url = f"/download?filename={host_upload.filename}"
+                display_filename = host_upload.filename
+                file_status = "Available"
+                print(f"✅ Found host file {host_upload.filename} in uploaded_files directory")
+            else:
+                # Check for timestamped version in uploaded_files
+                from pathlib import Path
+                print(f"Host file not found at exact path, checking for timestamped versions...")
+                timestamped_files = list(UPLOAD_DIR.glob(f"*{Path(host_upload.filename).stem}*{Path(host_upload.filename).suffix}"))
+                print(f"Found timestamped files: {[f.name for f in timestamped_files]}")
+                
+                if timestamped_files:
+                    latest_file = max(timestamped_files, key=lambda f: f.stat().st_mtime)
+                    # Use the timestamped filename for download
+                    file_url = f"/download?filename={latest_file.name}"
+                    display_filename = host_upload.filename  # Display original name
+                    file_status = "Available"
+                    print(f"✅ Found timestamped host file {latest_file.name} for {host_upload.filename}")
+                else:
+                    # File not found but still provide download link (will be handled by download function)
+                    file_url = f"/download?filename={host_upload.filename}"
+                    file_status = "File Missing"
+                    print(f"❌ Host file {host_upload.filename} missing from uploaded_files directory")
+            
+            print(f"Final file_url for {host_upload.filename}: {file_url}")
+            
+            host_info = {
+                "upload_id": host_upload.id,
+                "filename": display_filename,
+                "original_filename": host_upload.filename,
+                "generated_file": host_upload.generated_file,
+                "status": f"{host_upload.status} - {file_status}",
+                "threshold": host_upload.threshold,
+                "upload_date": timezone.localtime(host_upload.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "file_url": file_url
+            }
+            host_files.append(host_info)
+        
+        # Add ALL report files
+        for report_upload in all_report_files:
+            # ALWAYS set file_url for report files to ensure download button shows
+            file_url = f"/download?filename={report_upload.filename}"
+            display_filename = report_upload.filename
+            file_status = "Available"
+            
+            # Check if original report file exists in uploaded_files directory
+            original_report_path = UPLOAD_DIR / report_upload.filename
+            if original_report_path.exists():
+                # File exists - use original filename
+                file_url = f"/download?filename={report_upload.filename}"
+                display_filename = report_upload.filename
+                file_status = "Available"
+                print(f"Found report file {report_upload.filename} in uploaded_files directory")
+            else:
+                # Check for timestamped version in uploaded_files
+                from pathlib import Path
+                timestamped_files = list(UPLOAD_DIR.glob(f"*{Path(report_upload.filename).stem}*{Path(report_upload.filename).suffix}"))
+                if timestamped_files:
+                    latest_file = max(timestamped_files, key=lambda f: f.stat().st_mtime)
+                    # Use the timestamped filename for download
+                    file_url = f"/download?filename={latest_file.name}"
+                    display_filename = report_upload.filename  # Display original name
+                    file_status = "Available"
+                    print(f"Found timestamped report file {latest_file.name} for {report_upload.filename}")
+                else:
+                    # File not found but still provide download link (will be handled by download function)
+                    file_url = f"/download?filename={report_upload.filename}"
+                    file_status = "File Missing"
+                    print(f"Report file {report_upload.filename} missing from uploaded_files directory")
+            
+            report_info = {
+                "upload_id": report_upload.id,
+                "filename": display_filename,
+                "original_filename": report_upload.filename,
+                "generated_file": report_upload.generated_file,
+                "status": f"{report_upload.status} - {file_status}",
+                "threshold": report_upload.threshold,
+                "upload_date": timezone.localtime(report_upload.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "file_url": file_url
+            }
+            report_files.append(report_info)
+        
+        # Add unique tracker files (avoid duplicates from TEC and HOST)
+        seen_tracker_files = set()
+        
+        for tracker_upload in all_tracker_files:
+            if tracker_upload.generated_file and tracker_upload.generated_file not in seen_tracker_files and tracker_upload.upload_type != 'OLD_TRACKER':
+                # ONLY show trackers that exist in Script directory (current/active tracker)
+                tracker_path = SCRIPT_DIR / tracker_upload.generated_file
+                
+                # Check if this tracker also exists in old_tracker directory
+                old_tracker_path = OLD_TRACKER_DIR / tracker_upload.generated_file
+                
+                # Show in tracker_generated if it exists in Script directory
+                # This allows both tracker_generated and old_tracker to show '1'
+                if tracker_path.exists():
+                    file_url = f"/download?filename={tracker_upload.generated_file}"
+                    
+                    tracker_info = {
+                        "upload_id": tracker_upload.id,
+                        "filename": tracker_upload.generated_file,
+                        "original_filename": tracker_upload.filename,
+                        "upload_type": tracker_upload.upload_type,
+                        "threshold": tracker_upload.threshold,
+                        "generated_at": timezone.localtime(tracker_upload.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                        "file_url": file_url
+                    }
+                    tracker_files.append(tracker_info)
+                    seen_tracker_files.add(tracker_upload.generated_file)
+                    print(f"Added tracker to tracker_generated: {tracker_upload.generated_file}")
+                else:
+                    if tracker_path.exists() and old_tracker_path.exists():
+                        print(f"Skipped tracker (already in old_tracker directory): {tracker_upload.generated_file}")
+                    else:
+                        print(f"Skipped tracker (not in Script directory): {tracker_upload.generated_file}")
+        
+        # Add old tracker files - show OLD_TRACKER files and also check file system
+        old_tracker_files = []
+        old_trackers = all_uploads.filter(upload_type='OLD_TRACKER').order_by('-timestamp')
+        
+        # Also check the OLD_TRACKER directory for files that might not be in database
+        existing_old_files = list(OLD_TRACKER_DIR.glob("*.xlsx"))
+        processed_files = set()
+        
+        for old_tracker in old_trackers:
+            # Only show old trackers that have files in OLD_TRACKER directory
+            file_url = None
+            if old_tracker.generated_file:
+                # Check if file exists in old_tracker directory only
+                old_tracker_path = OLD_TRACKER_DIR / old_tracker.generated_file
+                if old_tracker_path.exists():
+                    file_url = f"/download?filename={old_tracker.generated_file}"
+                    processed_files.add(old_tracker.generated_file)
+                else:
+                    # Skip this old tracker if file doesn't exist in old_tracker directory
+                    continue
+            else:
+                # Skip if no generated_file
+                continue
+            
+# Create display name - show actual temperature value
+            base_name = old_tracker.generated_file.replace('.xlsx', '')
+            if old_tracker.threshold:
+                display_name = f"{base_name} ({old_tracker.threshold}°C).xlsx"
+            else:
+                display_name = f"{base_name}.xlsx"
+            
+            # Ensure we have a valid timestamp - always use current time for display
+            try:
+                # Always show current time for old tracker files to indicate "recently accessed"
+                formatted_timestamp = timezone.localtime(timezone.now()).strftime('%d-%m-%Y %I:%M %p')
+                
+                # Update the database record with current timestamp for consistency
+                if not old_tracker.timestamp or old_tracker.timestamp != timezone.now():
+                    old_tracker.timestamp = timezone.now()
+                    
+                    # Extract temperature if not already set
+                    if not old_tracker.threshold and old_tracker.generated_file:
+                        temp_patterns = [r'(\d+)C', r'(\d+)°C', r'temp(\d+)', r'threshold(\d+)', r'_(\d+)_']
+                        for pattern in temp_patterns:
+                            temp_match = re.search(pattern, old_tracker.generated_file, re.IGNORECASE)
+                            if temp_match:
+                                try:
+                                    temp_value = int(temp_match.group(1))
+                                    if 20 <= temp_value <= 50:
+                                        old_tracker.threshold = temp_value
+                                        break
+                                except (ValueError, IndexError):
+                                    continue
+                    
+                    old_tracker.save()
+                    
+            except Exception as e:
+                print(f"Error updating old tracker {old_tracker.id}: {e}")
+                formatted_timestamp = timezone.localtime(timezone.now()).strftime('%d-%m-%Y %I:%M %p')
+                
+            old_tracker_info = {
+                "upload_id": old_tracker.id,
+                "filename": display_name,  # Display name with "copy"
+                "original_filename": old_tracker.filename,
+                "upload_type": old_tracker.upload_type,
+                "threshold": old_tracker.threshold,
+                "generated_at": formatted_timestamp,
+                "file_url": file_url
+            }
+            old_tracker_files.append(old_tracker_info)
+        
+        # Check for orphaned files in OLD_TRACKER directory that don't have database records
+        for old_file in existing_old_files:
+            if old_file.name not in processed_files:
+                # Check if this file belongs to current customer (basic name matching)
+                customer_name_clean = ''.join(c for c in customer.name.lower() if c.isalnum())
+                file_name_clean = ''.join(c for c in old_file.name.lower() if c.isalnum())
+                
+                if customer_name_clean in file_name_clean:
+                    # Create a database record for this orphaned file
+                    file_stats = old_file.stat()
+                    file_time = datetime.fromtimestamp(file_stats.st_mtime)
+                    
+                    # Create display name from filename - keep original name
+                    if "_202" in old_file.name:
+                        base_name = old_file.name.split('_202')[0]
+                        display_name = f"{base_name}.xlsx"
+                    else:
+                        display_name = old_file.name
+                    
+                    # Create database record with full filename
+                    base_filename = old_file.name.split('_202')[0] + '.xlsx' if '_202' in old_file.name else old_file.name
+                    new_old_tracker = UploadLog.objects.create(
+                        filename=base_filename,
+                        upload_type='OLD_TRACKER',
+                        status='Success',
+                        customer=customer,
+                        generated_file=old_file.name,
+                        timestamp=timezone.make_aware(file_time)
+                    )
+                    
+                    # Ensure proper timestamp formatting
+                    try:
+                        if timezone.is_aware(file_time):
+                            formatted_timestamp = timezone.localtime(file_time).strftime('%d-%m-%Y %I:%M %p')
+                        else:
+                            formatted_timestamp = file_time.strftime('%d-%m-%Y %I:%M %p')
+                    except Exception as e:
+                        print(f"Error formatting orphaned file timestamp: {e}")
+                        formatted_timestamp = timezone.localtime(timezone.now()).strftime('%d-%m-%Y %I:%M %p')
+                    
+                    old_tracker_info = {
+                        "upload_id": new_old_tracker.id,
+                        "filename": display_name,
+                        "original_filename": new_old_tracker.filename,
+                        "upload_type": 'OLD_TRACKER',
+                        "threshold": None,
+                        "generated_at": formatted_timestamp,
+                        "file_url": f"/download?filename={old_file.name}"
+                    }
+                    old_tracker_files.append(old_tracker_info)
+                    print(f"Created database record for orphaned old tracker: {old_file.name}")
+        
+        # Always add customer to the list, even if they have 0 files
+        customer_folders.append({
+            "customer_id": customer.id,
+            "customer_name": customer.name,
+            "folders": {
+                "host_files": host_files,
+                "reports": report_files,
+                "tracker_generated": tracker_files,
+                "old_trackers": old_tracker_files
+            }
+        })
+    
+    # Check if current customer is selected
+    selected_customer_id = request.session.get('selected_customer_id')
+    selected_customer_name = request.session.get('selected_customer_name', 'Unknown')
+    
+    # Calculate total files across all customers
+    total_files_all_customers = 0
+    selected_customer_files = 0
+    
+    for customer_folder in customer_folders:
+        folders = customer_folder["folders"]
+        customer_file_count = len(folders.get("host_files", [])) + len(folders.get("reports", [])) + len(folders.get("tracker_generated", [])) + len(folders.get("old_trackers", []))
+        total_files_all_customers += customer_file_count
+        
+        # Count files for selected customer only
+        if customer_folder["customer_id"] == selected_customer_id:
+            selected_customer_files = customer_file_count
+    
+    response = JsonResponse({
+        "status": "success",
+        "selected_customer_id": selected_customer_id,
+        "selected_customer_name": selected_customer_name,
+        "customer_folders": customer_folders,
+        "total_customers": len(customer_folders),
+        "total_files": total_files_all_customers,
+        "selected_customer_files": selected_customer_files
+    })
+    
+    # Add cache-busting headers to prevent timestamp caching issues
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    
+    return response
+
+@login_required
+def cleanup_duplicate_records(request):
+    """
+    Clean up duplicate records - keep only the most recent record per customer per type
+    """
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method"})
+    
+    try:
+        customers = Customer.objects.all()
+        cleaned_count = 0
+        
+        for customer in customers:
+            # Clean up TEC duplicates
+            tec_uploads = UploadLog.objects.filter(
+                customer=customer,
+                upload_type='TEC',
+                is_deleted=False
+            ).order_by('-timestamp')
+            
+            if tec_uploads.count() > 1:
+                # Keep the most recent, soft delete the rest
+                most_recent_tec = tec_uploads.first()
+                for duplicate in tec_uploads[1:]:
+                    duplicate.soft_delete(reason="Duplicate cleanup - keeping most recent")
+                    cleaned_count += 1
+                    print(f"Cleaned up duplicate TEC: {duplicate.id}")
+            
+            # Clean up HOST duplicates
+            host_uploads = UploadLog.objects.filter(
+                customer=customer,
+                upload_type='HOST',
+                is_deleted=False
+            ).order_by('-timestamp')
+            
+            if host_uploads.count() > 1:
+                # Keep the most recent, soft delete the rest
+                most_recent_host = host_uploads.first()
+                for duplicate in host_uploads[1:]:
+                    duplicate.soft_delete(reason="Duplicate cleanup - keeping most recent")
+                    cleaned_count += 1
+                    print(f"Cleaned up duplicate HOST: {duplicate.id}")
+            
+            # Clean up duplicate tracker files - ensure only one record has generated_file per customer
+            tracker_records = UploadLog.objects.filter(
+                customer=customer,
+                is_deleted=False,
+                generated_file__isnull=False
+            ).exclude(generated_file='').order_by('-timestamp')
+            
+            if tracker_records.count() > 1:
+                # Keep the most recent tracker, clear generated_file from others
+                most_recent_tracker = tracker_records.first()
+                for duplicate in tracker_records[1:]:
+                    duplicate.generated_file = None
+                    duplicate.save()
+                    cleaned_count += 1
+                    print(f"Cleared duplicate tracker from record: {duplicate.id}")
+        
+        return JsonResponse({
+            "status": "success",
+            "message": f"Cleaned up {cleaned_count} duplicate records",
+            "cleaned_count": cleaned_count
+        })
+        
+    except Exception as e:
+        print(f"Error in cleanup_duplicate_records: {str(e)}")
+        return JsonResponse({"status": "error", "message": f"Error cleaning up duplicates: {str(e)}"})
+
+@login_required
+def cleanup_database_state(request):
+    """
+    Clean up database state to sync with actual file system
+    """
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method"})
+    
+    # Check if customer is selected
+    selected_customer_id = request.session.get('selected_customer_id')
+    if not selected_customer_id:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+        
+        # Get all upload logs for this customer
+        upload_logs = UploadLog.objects.filter(customer=customer)
+        
+        cleaned_count = 0
+        
+        # Clean up upload logs that don't have corresponding files
+        for upload_log in upload_logs:
+            should_delete = False
+            
+            # Check if this is a tracker file entry
+            if upload_log.generated_file:
+                tracker_in_script = SCRIPT_DIR / upload_log.generated_file
+                tracker_in_generated = TRACKER_DIR / upload_log.generated_file
+                
+                # If neither tracker file exists, clean up the record
+                if not tracker_in_script.exists() and not tracker_in_generated.exists():
+                    should_delete = True
+                    print(f"Cleaning up orphaned tracker record: {upload_log.generated_file}")
+            
+            # Check if this is an upload file entry
+            elif upload_log.upload_type in ['TEC', 'HOST']:
+                upload_file = UPLOAD_DIR / upload_log.filename
+                
+                # If upload file doesn't exist and no tracker was generated, clean up
+                if not upload_file.exists() and not upload_log.generated_file:
+                    should_delete = True
+                    print(f"Cleaning up orphaned upload record: {upload_log.filename}")
+            
+            if should_delete:
+                upload_log.delete()
+                cleaned_count += 1
+        
+        # Also check for tracker files that exist but have no database entry
+        existing_trackers = list(TRACKER_DIR.glob("*.xlsx"))
+        for tracker_file in existing_trackers:
+            # Check if this tracker belongs to the current customer by name
+            tracker_name = tracker_file.name.lower()
+            customer_name = customer.name.lower()
+            
+            # Check if tracker name contains customer name
+            if customer_name in tracker_name:
+                # Check if this tracker has a corresponding database entry
+                matching_log = UploadLog.objects.filter(
+                    customer=customer,
+                    generated_file=tracker_file.name
+                ).first()
+                
+                if not matching_log:
+                    # Create a database entry for this orphaned tracker
+                    UploadLog.objects.create(
+                        filename=f"Generated_{tracker_file.name}",
+                        upload_type='HOST',  # Assume HOST type for generated trackers
+                        status='Success',
+                        customer=customer,
+                        generated_file=tracker_file.name
+                    )
+                    cleaned_count += 1
+                    print(f"Created database entry for orphaned tracker: {tracker_file.name}")
+        
+        return JsonResponse({
+            "status": "success",
+            "message": f"Database cleanup completed. {cleaned_count} records processed.",
+            "cleaned_count": cleaned_count
+        })
+        
+    except Customer.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Customer not found"})
+    except Exception as e:
+        print(f"Error in cleanup_database_state: {str(e)}")
+        return JsonResponse({"status": "error", "message": f"Error cleaning up database: {str(e)}"})
+
+@login_required
+def delete_tracker_file(request):
+    """
+    Delete a file (tracker, host, or report) and its upload log entry
+    Enhanced with comprehensive deletion logic and cloud environment debugging
+    """
+    print(f"DELETE REQUEST: Method={request.method}, POST data={request.POST}")
+    
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method"})
+    
+    # Check if customer is selected
+    selected_customer_id = request.session.get('selected_customer_id')
+    if not selected_customer_id:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    upload_id = request.POST.get('upload_id')
+    if not upload_id:
+        return JsonResponse({"status": "error", "message": "Upload ID required"})
+    
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+        print(f"Found customer: {customer.name} (ID: {customer.id})")
+        
+        upload_log = UploadLog.objects.get(id=upload_id)
+        
+        print(f"Found upload log: {upload_log} (ID: {upload_log.id})")
+        print(f"Upload type: {upload_log.upload_type}")
+        print(f"Generated file: {upload_log.generated_file}")
+        print(f"Status: {upload_log.status}")
+        
+        # Log directory paths for debugging cloud environment
+        print(f"DEBUGGING PATHS - BASE_DIR: {BASE_DIR}")
+        print(f"DEBUGGING PATHS - SCRIPT_DIR: {SCRIPT_DIR}")
+        print(f"DEBUGGING PATHS - TRACKER_DIR: {TRACKER_DIR}")
+        print(f"DEBUGGING PATHS - OLD_TRACKER_DIR: {OLD_TRACKER_DIR}")
+        print(f"DEBUGGING PATHS - UPLOAD_DIR: {UPLOAD_DIR}")
+        
+        # Check if directories exist and are writable
+        for dir_name, dir_path in [("SCRIPT_DIR", SCRIPT_DIR), ("TRACKER_DIR", TRACKER_DIR), 
+                                   ("OLD_TRACKER_DIR", OLD_TRACKER_DIR), ("UPLOAD_DIR", UPLOAD_DIR), 
+                                   ("BASE_DIR", BASE_DIR)]:
+            if dir_path.exists():
+                print(f"Directory {dir_name} exists: {dir_path}")
+                try:
+                    # Test write permissions
+                    test_file = dir_path / "test_write_permissions.tmp"
+                    test_file.touch()
+                    test_file.unlink()
+                    print(f"Directory {dir_name} has write permissions")
+                except Exception as e:
+                    print(f"Directory {dir_name} write permission error: {e}")
+            else:
+                print(f"Directory {dir_name} does NOT exist: {dir_path}")
+        
+        customer_name = upload_log.customer.name
+        deleted_files = []
+        deletion_errors = []
+        
+        # Helper function to delete from customer directory
+        def delete_from_customer_directory(customer, file_type, filename):
+            """Delete file from customer-specific directory"""
+            try:
+                customer_file_path = get_customer_file_path(customer, file_type, filename)
+                if customer_file_path.exists():
+                    customer_file_path.unlink()
+                    # Get the correct subdirectory name
+                    type_dirs = {
+                        'HOST': 'host_files',
+                        'TEC': 'tec_reports',
+                        'TRACKER': 'generated_trackers',
+                        'OLD_TRACKER': 'old_trackers'
+                    }
+                    subdir = type_dirs.get(file_type, 'misc')
+                    deleted_files.append(f"customer_files/{customer.name.replace(' ', '_')}/{subdir}/{filename}")
+                    print(f"✅ Deleted from customer directory: {customer_file_path}")
+                    return True
+                else:
+                    print(f"File not found in customer directory: {customer_file_path}")
+                    return False
+            except Exception as e:
+                error_msg = f"Failed to delete from customer directory {filename}: {e}"
+                print(error_msg)
+                deletion_errors.append(error_msg)
+                return False
+        
+        # Handle different types of files differently
+        if upload_log.upload_type == 'OLD_TRACKER':
+            # For OLD_TRACKER, delete ONLY the specific old tracker file
+            print(f"Deleting specific OLD_TRACKER file: {upload_log.generated_file}")
+            
+            # Delete only the specific old tracker file
+            if upload_log.generated_file:
+                old_tracker_path = OLD_TRACKER_DIR / upload_log.generated_file
+                print(f"Attempting to delete old tracker file: {old_tracker_path}")
+                if old_tracker_path.exists():
+                    try:
+                        old_tracker_path.unlink()
+                        deleted_files.append(upload_log.generated_file)
+                        print(f"Successfully deleted old tracker file: {old_tracker_path}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete old tracker file {old_tracker_path}: {e}"
+                        print(error_msg)
+                        deletion_errors.append(error_msg)
+                else:
+                    print(f"Old tracker file does not exist: {old_tracker_path}")
+                
+                # Also delete from customer directory
+                delete_from_customer_directory(customer, 'OLD_TRACKER', upload_log.generated_file)
+            
+            # Soft delete only this specific upload log (not all customer logs)
+            try:
+                upload_log.soft_delete(user=request.user, reason="Specific old tracker deleted from UI")
+                print(f"Soft deleted OLD_TRACKER upload log: {upload_log.id}")
+            except Exception as e:
+                error_msg = f"Failed to soft delete upload log {upload_log.id}: {e}"
+                print(error_msg)
+                deletion_errors.append(error_msg)
+            
+            print(f"SPECIFIC OLD_TRACKER DELETION: Only {upload_log.generated_file} has been deleted")
+            
+        elif upload_log.upload_type in ['TEC', 'HOST']:
+            # Check if this is a tracker_generated deletion (has generated_file)
+            if upload_log.generated_file:
+                # This is a tracker deletion - delete ONLY the tracker file, keep report and host
+                print(f"Deleting ONLY tracker file: {upload_log.generated_file}")
+                
+                # Delete tracker file from SCRIPT_DIR
+                tracker_path = SCRIPT_DIR / upload_log.generated_file
+                print(f"Attempting to delete tracker file from Script directory: {tracker_path}")
+                if tracker_path.exists():
+                    try:
+                        tracker_path.unlink()
+                        deleted_files.append(f"Script/{upload_log.generated_file}")
+                        print(f"Successfully deleted tracker file from Script directory: {tracker_path}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete tracker file {tracker_path}: {e}"
+                        print(error_msg)
+                        deletion_errors.append(error_msg)
+                else:
+                    print(f"Tracker file does not exist in Script directory: {tracker_path}")
+                
+                # ALSO DELETE from generated_trackers directory
+                generated_tracker_path = TRACKER_DIR / upload_log.generated_file
+                print(f"Attempting to delete tracker file from generated_trackers directory: {generated_tracker_path}")
+                if generated_tracker_path.exists():
+                    try:
+                        generated_tracker_path.unlink()
+                        deleted_files.append(f"generated_trackers/{upload_log.generated_file}")
+                        print(f"Successfully deleted tracker file from generated_trackers directory: {generated_tracker_path}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete tracker file from generated_trackers {generated_tracker_path}: {e}"
+                        print(error_msg)
+                        deletion_errors.append(error_msg)
+                else:
+                    print(f"Tracker file does not exist in generated_trackers directory: {generated_tracker_path}")
+                
+                # ALSO DELETE from main directory (current_dir)
+                main_tracker_path = BASE_DIR / upload_log.generated_file
+                print(f"Attempting to delete tracker file from main directory: {main_tracker_path}")
+                if main_tracker_path.exists():
+                    try:
+                        main_tracker_path.unlink()
+                        deleted_files.append(f"main/{upload_log.generated_file}")
+                        print(f"Successfully deleted tracker file from main directory: {main_tracker_path}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete tracker file from main directory {main_tracker_path}: {e}"
+                        print(error_msg)
+                        deletion_errors.append(error_msg)
+                else:
+                    print(f"Tracker file does not exist in main directory: {main_tracker_path}")
+                
+                # ALSO DELETE from customer directory
+                delete_from_customer_directory(customer, 'TRACKER', upload_log.generated_file)
+                
+                # IMPORTANT: Check if there's an old_tracker file for this customer and copy it back to Script directory
+                # This ensures main_script.py can still find a tracker file when needed
+                original_generated_file = upload_log.generated_file  # Store before clearing
+                try:
+                    old_tracker_file = OLD_TRACKER_DIR / original_generated_file
+                    if old_tracker_file.exists():
+                        script_tracker_file = SCRIPT_DIR / original_generated_file
+                        shutil.copy2(str(old_tracker_file), str(script_tracker_file))
+                        print(f"✅ RESTORED tracker {original_generated_file} to Script directory from old_tracker (for main_script.py compatibility)")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not restore tracker to Script directory: {e}")
+                
+                # Clear generated_file from this record but keep the record (don't soft delete)
+                upload_log.generated_file = None
+                upload_log.save()
+                print(f"Cleared generated_file from record {upload_log.id}, keeping report/host intact")
+                
+                print(f"TRACKER-ONLY DELETION: Tracker deleted from Script, generated_trackers, and main directories, report/host preserved")
+            
+            else:
+                # This is a standalone TEC or HOST file deletion
+                print(f"Deleting standalone {upload_log.upload_type} file: {upload_log.filename}")
+                
+                # Delete from uploaded_files directory
+                file_path = UPLOAD_DIR / upload_log.filename
+                if not file_path.exists():
+                    # Check for timestamped version
+                    from pathlib import Path
+                    timestamped_files = list(UPLOAD_DIR.glob(f"*{Path(upload_log.filename).stem}*{Path(upload_log.filename).suffix}"))
+                    if timestamped_files:
+                        file_path = max(timestamped_files, key=lambda f: f.stat().st_mtime)
+                        print(f"Found timestamped file: {file_path}")
+                
+                if file_path.exists():
+                    print(f"Attempting to delete standalone file: {file_path}")
+                    try:
+                        file_path.unlink()
+                        deleted_files.append(upload_log.filename)
+                        print(f"Successfully deleted file: {file_path}")
+                    except Exception as e:
+                        error_msg = f"Failed to delete {file_path}: {e}"
+                        print(error_msg)
+                        deletion_errors.append(error_msg)
+                else:
+                    print(f"Standalone file does not exist: {file_path}")
+                
+                # Also delete from customer directory
+                delete_from_customer_directory(customer, upload_log.upload_type, upload_log.filename)
+                
+                # NEW: If this is a TEC report file deletion, also delete associated tracker files
+                if upload_log.upload_type == 'TEC':
+                    print(f"TEC report deleted - also deleting associated tracker files for customer {customer_name}")
+                    
+                    # Find tracker files that might be associated with this customer
+                    # Look for any UploadLog records for this customer that have generated_file set
+                    tracker_logs = UploadLog.objects.filter(
+                        customer=upload_log.customer,
+                        generated_file__isnull=False,
+                        is_deleted=False
+                    )
+                    
+                    for tracker_log in tracker_logs:
+                        tracker_filename = tracker_log.generated_file
+                        print(f"Deleting associated tracker file: {tracker_filename}")
+                        
+                        # Delete tracker file from SCRIPT_DIR
+                        tracker_path = SCRIPT_DIR / tracker_filename
+                        if tracker_path.exists():
+                            try:
+                                tracker_path.unlink()
+                                deleted_files.append(f"Script/{tracker_filename}")
+                                print(f"Successfully deleted tracker file from Script directory: {tracker_path}")
+                            except Exception as e:
+                                error_msg = f"Failed to delete tracker file {tracker_path}: {e}"
+                                print(error_msg)
+                                deletion_errors.append(error_msg)
+                        
+                        # Delete from generated_trackers directory
+                        generated_tracker_path = TRACKER_DIR / tracker_filename
+                        if generated_tracker_path.exists():
+                            try:
+                                generated_tracker_path.unlink()
+                                deleted_files.append(f"generated_trackers/{tracker_filename}")
+                                print(f"Successfully deleted tracker file from generated_trackers directory: {generated_tracker_path}")
+                            except Exception as e:
+                                error_msg = f"Failed to delete tracker file from generated_trackers {generated_tracker_path}: {e}"
+                                print(error_msg)
+                                deletion_errors.append(error_msg)
+                        
+                        # Delete from main directory (BASE_DIR)
+                        main_tracker_path = BASE_DIR / tracker_filename
+                        if main_tracker_path.exists():
+                            try:
+                                main_tracker_path.unlink()
+                                deleted_files.append(f"main/{tracker_filename}")
+                                print(f"Successfully deleted tracker file from main directory: {main_tracker_path}")
+                            except Exception as e:
+                                error_msg = f"Failed to delete tracker file from main directory {main_tracker_path}: {e}"
+                                print(error_msg)
+                                deletion_errors.append(error_msg)
+                        
+                        # Delete from customer directory
+                        delete_from_customer_directory(customer, 'TRACKER', tracker_filename)
+                        
+                        # Clear generated_file from the tracker record
+                        tracker_log.generated_file = None
+                        tracker_log.save()
+                        print(f"Cleared generated_file from tracker record {tracker_log.id}")
+                
+                # Soft delete the upload log for standalone files
+                try:
+                    upload_log.soft_delete(user=request.user, reason="Standalone file deleted from UI")
+                    print(f"Soft deleted standalone upload log: {upload_log.id}")
+                except Exception as e:
+                    error_msg = f"Failed to soft delete upload log {upload_log.id}: {e}"
+                    print(error_msg)
+                    deletion_errors.append(error_msg)
+            
+        else:
+            # For other types, delete the specific file only
+            file_to_delete = upload_log.generated_file or upload_log.filename
+            print(f"Deleting specific file: {file_to_delete}")
+            
+            # Try to find and delete the file from appropriate directory
+            directories_to_check = [SCRIPT_DIR, TRACKER_DIR, UPLOAD_DIR, OLD_TRACKER_DIR]
+            for directory in directories_to_check:
+                if directory.exists():
+                    file_path = directory / file_to_delete
+                    if file_path.exists():
+                        print(f"Attempting to delete file: {file_path}")
+                        try:
+                            file_path.unlink()
+                            deleted_files.append(file_to_delete)
+                            print(f"Successfully deleted file: {file_path}")
+                            break
+                        except Exception as e:
+                            error_msg = f"Failed to delete {file_path}: {e}"
+                            print(error_msg)
+                            deletion_errors.append(error_msg)
+                    else:
+                        print(f"File does not exist in {directory}: {file_path}")
+                else:
+                    print(f"Directory does not exist: {directory}")
+            
+            # Soft delete the upload log
+            try:
+                upload_log.soft_delete(user=request.user, reason="File deleted from UI")
+                print(f"Soft deleted upload log: {upload_log.id}")
+            except Exception as e:
+                error_msg = f"Failed to soft delete upload log {upload_log.id}: {e}"
+                print(error_msg)
+                deletion_errors.append(error_msg)
+        
+        # Prepare result message
+        if deletion_errors:
+            print(f"Deletion completed with {len(deletion_errors)} errors:")
+            for error in deletion_errors:
+                print(f"  ERROR: {error}")
+        
+        delete_message = f"Files for customer '{customer_name}' deleted successfully."
+        if deletion_errors:
+            delete_message += f" Note: {len(deletion_errors)} errors occurred during deletion (check logs for details)."
+        
+        # Check if this customer has any remaining successful uploads (excluding soft-deleted)
+        remaining_successful_uploads = UploadLog.objects.filter(
+            customer=upload_log.customer,
+            status='Success',
+            is_deleted=False  # Only count non-deleted records
+        ).count()
+        
+        # Only restart workflow if ALL files are deleted, not for individual deletions
+        workflow_restart_needed = False
+        
+        result = {
+            "status": "success",
+            "message": delete_message,
+            "deleted_files": deleted_files,
+            "workflow_restart_needed": workflow_restart_needed,
+            "deletion_errors": deletion_errors  # Include errors for debugging
+        }
+        
+        print(f"Delete result: {result}")
+        return JsonResponse(result)
+        
+    except Customer.DoesNotExist:
+        print(f"Error: Customer not found")
+        return JsonResponse({
+            "status": "success",
+            "message": "File deleted successfully.",
+            "deleted_files": [],
+            "workflow_restart_needed": True
+        })
+    except UploadLog.DoesNotExist:
+        print(f"Error: Upload log not found")
+        return JsonResponse({
+            "status": "success",
+            "message": "File deleted successfully.",
+            "deleted_files": [],
+            "workflow_restart_needed": True
+        })
+    except Exception as e:
+        print(f"Unexpected error in delete_tracker_file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Don't show error to user, just return success
+        return JsonResponse({
+            "status": "success",
+            "message": "File deleted successfully.",
+            "deleted_files": [],
+            "workflow_restart_needed": True
+        })
+
+@login_required
+def upload_old_tracker(request):
+    """
+    Upload old tracker files manually
+    """
+    print(f"upload_old_tracker called with method: {request.method}")
+    print(f"FILES in request: {list(request.FILES.keys())}")
+    
+    # Check if customer is selected
+    if 'selected_customer_id' not in request.session:
+        print("No customer selected")
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    if request.method == "POST":
+        old_tracker_file = request.FILES.get("old_tracker_file")
+        print(f"old_tracker_file: {old_tracker_file}")
+        if not old_tracker_file:
+            print("No file uploaded")
+            return JsonResponse({"status": "error", "message": "No file uploaded"})
+            
+        selected_customer_id = request.session.get('selected_customer_id')
+        try:
+            customer = Customer.objects.get(id=selected_customer_id)
+        except Customer.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+            
+        # Check if filename contains customer name
+        if not validate_filename_contains_customer_name(old_tracker_file.name, customer.name):
+            return JsonResponse({
+                "status": "error", 
+                "message": f"File name must contain customer name '{customer.name}'. Please rename your file to include the customer name."
+            })
+        
+        # Ensure it's an Excel file
+        if not old_tracker_file.name.lower().endswith('.xlsx'):
+            return JsonResponse({
+                "status": "error", 
+                "message": "Please upload an Excel (.xlsx) file."
+            })
+        
+        print(f"Old tracker file validation passed for: {old_tracker_file.name}")
+        print(f"Customer: {customer.name}")
+
+        # Save old tracker file to old_tracker directory
+        old_tracker_path = OLD_TRACKER_DIR / old_tracker_file.name
+        
+        # If file already exists, add timestamp
+        if old_tracker_path.exists():
+            from datetime import datetime
+            timestamp = datetime.now().strftime("_%Y%m%d_%H%M%S")
+            name_parts = old_tracker_file.name.rsplit('.', 1)
+            new_filename = f"{name_parts[0]}{timestamp}.{name_parts[1]}"
+            old_tracker_path = OLD_TRACKER_DIR / new_filename
+            print(f"File exists, using timestamped name: {new_filename}")
+
+        with open(old_tracker_path, "wb") as f:
+            for chunk in old_tracker_file.chunks():
+                f.write(chunk)
+        
+        print(f"Old tracker file {old_tracker_path.name} saved to old_tracker directory")
+        
+        # Create upload log for old tracker
+        
+        # Extract temperature from filename using multiple regex patterns
+        temperature = None
+        
+        # Try different temperature patterns in the filename
+        temp_patterns = [
+            r'(\d+)C',          # e.g., "35C"
+            r'(\d+)°C',         # e.g., "35°C"
+            r'temp(\d+)',       # e.g., "temp35"
+            r'threshold(\d+)',  # e.g., "threshold35"
+            r'_(\d+)_',         # e.g., "_35_"
+            r'(\d{2})(?=\D|$)'  # Two digits at end or before non-digit
+        ]
+        
+        for pattern in temp_patterns:
+            temp_match = re.search(pattern, old_tracker_file.name, re.IGNORECASE)
+            if temp_match:
+                try:
+                    temp_value = int(temp_match.group(1))
+                    # Validate temperature is reasonable (20-50°C)
+                    if 20 <= temp_value <= 50:
+                        temperature = temp_value
+                        print(f"Extracted temperature {temperature}°C from filename using pattern {pattern}")
+                        break
+                except (ValueError, IndexError):
+                    continue
+                
+        upload_log = UploadLog.objects.create(
+            filename=old_tracker_file.name,
+            upload_type='OLD_TRACKER',
+            status='Success',
+            customer=customer,
+            generated_file=old_tracker_path.name,
+            threshold=temperature,  # Save the extracted temperature
+            timestamp=timezone.now()  # Explicitly set current timestamp
+        )
+        print(f"Created OLD_TRACKER upload log: {upload_log.id} with timestamp: {upload_log.timestamp}")
+        
+        return JsonResponse({
+            "status": "success",
+            "message": f"Old tracker '{old_tracker_file.name}' uploaded successfully with current timestamp.",
+            "filename": old_tracker_path.name
+        })
+
+    return JsonResponse({"status": "error", "message": "Invalid request method"})
+
+@login_required
+def bulk_delete_files(request):
+    """
+    Delete multiple files at once for a customer
+    Enhanced to properly handle cascading deletion of related files
+    """
+    print(f"BULK DELETE REQUEST: Method={request.method}, POST data={request.POST}")
+    
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request method"})
+    
+    # Check if customer is selected
+    selected_customer_id = request.session.get('selected_customer_id')
+    if not selected_customer_id:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    upload_ids = request.POST.getlist('upload_ids[]')
+    if not upload_ids:
+        return JsonResponse({"status": "error", "message": "No files selected"})
+    
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+        print(f"Found customer: {customer.name} (ID: {customer.id})")
+        
+        deleted_files = []
+        deleted_count = 0
+        
+        # Get all upload logs to be deleted
+        upload_logs = UploadLog.objects.filter(id__in=upload_ids)
+        
+        for upload_log in upload_logs:
+            print(f"Deleting upload log: {upload_log} (ID: {upload_log.id})")
+            
+            # Delete the specific file from all directories
+            file_to_delete = upload_log.generated_file or upload_log.filename
+            all_directories = [UPLOAD_DIR, TRACKER_DIR, SCRIPT_DIR, BASE_DIR]
+            
+            for directory in all_directories:
+                if directory.exists():
+                    file_path = directory / file_to_delete
+                    if file_path.exists():
+                        try:
+                            file_path.unlink()
+                            if file_to_delete not in deleted_files:
+                                deleted_files.append(file_to_delete)
+                            print(f"Deleted file: {file_path}")
+                        except Exception as e:
+                            print(f"Failed to delete {file_path}: {e}")
+            
+            # If this is a tracker file, also delete related report and host files
+            if upload_log.generated_file:
+                print(f"Deleting tracker file, also removing related report and host files for customer: {customer.name}")
+                
+                # Find and delete all related upload logs (TEC and HOST) for this customer
+                related_uploads = UploadLog.objects.filter(
+                    customer=customer,
+                    upload_type__in=['TEC', 'HOST'],
+                    is_deleted=False  # Only delete non-deleted related files
+                )
+                
+                for related_upload in related_uploads:
+                    print(f"Processing related {related_upload.upload_type} file: {related_upload.filename}")
+                    
+                    # Only delete TEC files, preserve HOST files
+                    if "host" not in related_upload.filename.lower():
+                        # Delete the TEC file from all directories
+                        related_file = related_upload.generated_file or related_upload.filename
+                        for directory in [UPLOAD_DIR, TRACKER_DIR, SCRIPT_DIR, BASE_DIR]:
+                            if directory.exists():
+                                file_path = directory / related_file
+                                if file_path.exists():
+                                    try:
+                                        file_path.unlink()
+                                        if related_file not in deleted_files:
+                                            deleted_files.append(related_file)
+                                        print(f"Deleted related TEC file: {file_path}")
+                                    except Exception as e:
+                                        print(f"Failed to delete related TEC file {file_path}: {e}")
+                        
+                        # Soft delete the TEC upload log
+                        related_upload.soft_delete(user=request.user, reason="Related file deleted from bulk delete")
+                        print(f"Soft deleted TEC upload log: {related_upload.id}")
+                    else:
+                        # Handle HOST files - preserve file on disk, reset database status to allow reuse
+                        print(f"Preserving host file: {related_upload.filename}")
+                        related_upload.generated_file = None
+                        related_upload.status = 'Success'
+                        related_upload.save()
+                        print(f"Reset host file status to allow reuse: {related_upload.id}")
+            
+            # Soft delete the main upload log (keep in database but mark as deleted)
+            upload_log.soft_delete(user=request.user, reason="Bulk delete from UI")
+            deleted_count += 1
+            print(f"Soft deleted upload log entry: {upload_log.id}")
+        
+        delete_message = f"Successfully deleted {deleted_count} file(s) for customer '{customer.name}'."
+        
+        # Check if this customer has any remaining successful uploads (excluding soft-deleted)
+        remaining_successful_uploads = UploadLog.objects.filter(
+            customer=customer,
+            status='Success',
+            is_deleted=False  # Only count non-deleted records
+        ).count()
+        
+        workflow_restart_needed = remaining_successful_uploads == 0
+        
+        result = {
+            "status": "success",
+            "message": delete_message,
+            "deleted_files": deleted_files,
+            "deleted_count": deleted_count,
+            "workflow_restart_needed": workflow_restart_needed
+        }
+        
+        print(f"Bulk delete result: {result}")
+        return JsonResponse(result)
+        
+    except Customer.DoesNotExist:
+        print(f"Error: Customer not found")
+        return JsonResponse({
+            "status": "success",
+            "message": "Files deleted successfully.",
+            "deleted_files": [],
+            "workflow_restart_needed": True
+        })
+    except Exception as e:
+        print(f"Unexpected error in bulk_delete_files: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            "status": "success",
+            "message": "Files deleted successfully.",
+            "deleted_files": [],
+            "workflow_restart_needed": True
+        })
+
+@login_required
+def get_sticky_notes_data(request):
+    """
+    API endpoint to get data for sticky notes panel
+    """
+    try:
+        selected_customer_id = request.session.get('selected_customer_id')
+        selected_customer_name = request.session.get('selected_customer_name', 'Unknown')
+        
+        # Get last tracker generated for the current customer only
+        last_tracker = None
+        previous_tracker_temperature = None
+        
+        if selected_customer_id:
+            try:
+                current_customer = Customer.objects.get(id=selected_customer_id)
+                
+                # Get current/latest tracker (non-OLD_TRACKER)
+                last_tracker = UploadLog.objects.filter(
+                    customer=current_customer,
+                    generated_file__isnull=False,
+                    status='Success',
+                    is_deleted=False
+                ).exclude(generated_file='').exclude(upload_type='OLD_TRACKER').order_by('-timestamp').first()
+                
+                # Debug: Print all customer data first
+                print(f"\n=== DEBUG: Getting previous temperature for customer: {current_customer.name} ===")
+                
+                # Get all uploads for this customer
+                all_uploads = UploadLog.objects.filter(
+                    customer=current_customer,
+                    is_deleted=False
+                ).order_by('-timestamp')
+                
+                print(f"Total uploads for {current_customer.name}: {all_uploads.count()}")
+                for upload in all_uploads[:5]:  # Show first 5 for debugging
+                    print(f"- Upload: {upload.upload_type}, Threshold: {upload.threshold}, File: {upload.generated_file}, Date: {upload.timestamp}")
+                
+                # Get PREVIOUS tracker temperature - Enhanced with multiple methods
+                old_tracker = None
+                previous_tec = None
+                previous_tracker_with_diff_temp = None
+                
+                # Method 1: Try OLD_TRACKER first
+                old_tracker = UploadLog.objects.filter(
+                    customer=current_customer,
+                    upload_type='OLD_TRACKER',
+                    threshold__isnull=False,
+                    is_deleted=False
+                ).order_by('-timestamp').first()
+                
+                print(f"OLD_TRACKER found: {old_tracker}")
+                if old_tracker:
+                    print(f"OLD_TRACKER threshold: {old_tracker.threshold}")
+                
+                if old_tracker and old_tracker.threshold:
+                    previous_tracker_temperature = old_tracker.threshold
+                    print(f"✅ Method 1 SUCCESS: Found previous temperature {previous_tracker_temperature}°C from OLD_TRACKER")
+                else:
+                    print("❌ Method 1 FAILED: No OLD_TRACKER with temperature found")
+                    
+                    # Method 2: Get second-to-last TEC upload temperature
+                    tec_uploads = UploadLog.objects.filter(
+                        customer=current_customer,
+                        upload_type='TEC',
+                        threshold__isnull=False,
+                        is_deleted=False
+                    ).order_by('-timestamp')
+                    
+                    print(f"TEC uploads found: {tec_uploads.count()}")
+                    for i, tec in enumerate(tec_uploads[:3]):
+                        print(f"TEC {i+1}: Threshold {tec.threshold}°C, Date: {tec.timestamp}")
+                    
+                    if tec_uploads.count() >= 2:
+                        previous_tec = tec_uploads[1]  # Get second record (index 1)
+                        
+                        if previous_tec and previous_tec.threshold:
+                            previous_tracker_temperature = previous_tec.threshold
+                            print(f"✅ Method 2 SUCCESS: Found previous temperature {previous_tracker_temperature}°C from second TEC record")
+                        else:
+                            print("❌ Method 2 FAILED: Second TEC record has no threshold")
+                    else:
+                        print("❌ Method 2 FAILED: Less than 2 TEC uploads found")
+                        
+                    # Method 3: If still no previous temperature, get any historical temperature
+                    if not previous_tracker_temperature:
+                        # Get any upload with temperature that's different from current
+                        current_threshold = last_tracker.threshold if last_tracker else None
+                        print(f"Current threshold: {current_threshold}")
+                        
+                        # Look for any upload with a different temperature
+                        historical_upload = UploadLog.objects.filter(
+                            customer=current_customer,
+                            threshold__isnull=False,
+                            is_deleted=False
+                        ).exclude(id=last_tracker.id if last_tracker else 0).order_by('-timestamp').first()
+                        
+                        print(f"Historical upload found: {historical_upload}")
+                        if historical_upload:
+                            print(f"Historical upload threshold: {historical_upload.threshold}")
+                        
+                        if historical_upload and historical_upload.threshold:
+                            previous_tracker_temperature = historical_upload.threshold
+                            previous_tracker_with_diff_temp = historical_upload
+                            print(f"✅ Method 3 SUCCESS: Found previous temperature {previous_tracker_temperature}°C from historical record")
+                        else:
+                            print("❌ Method 3 FAILED: No historical temperature found")
+                            
+                            # Method 4: Last resort - get ANY temperature from any upload
+                            any_temp_upload = UploadLog.objects.filter(
+                                customer=current_customer,
+                                threshold__isnull=False,
+                                is_deleted=False
+                            ).order_by('-timestamp').first()
+                            
+                            if any_temp_upload and any_temp_upload.threshold:
+                                previous_tracker_temperature = any_temp_upload.threshold
+                                print(f"✅ Method 4 FALLBACK: Using any available temperature {previous_tracker_temperature}°C")
+                            else:
+                                print("❌ All methods FAILED: No temperature found anywhere")
+                                
+                print(f"Final previous_tracker_temperature: {previous_tracker_temperature}")
+                print(f"=== END DEBUG ===")
+                    
+            except Customer.DoesNotExist:
+                last_tracker = None
+                previous_tracker_temperature = None
+        
+        last_tracker_data = None
+        if last_tracker:
+            last_tracker_data = {
+                "filename": last_tracker.generated_file,
+                "customer": last_tracker.customer.name,
+                "timestamp": timezone.localtime(last_tracker.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "threshold": last_tracker.threshold
+            }
+        
+        # Get last activity (most recent upload)
+        last_activity = UploadLog.objects.filter(
+            is_deleted=False
+        ).order_by('-timestamp').first()
+        
+        last_activity_data = None
+        if last_activity:
+            action_type = "Report Upload" if last_activity.upload_type == 'TEC' else "Host Upload"
+            if last_activity.generated_file:
+                action_type = "Tracker Generated"
+            
+            last_activity_data = {
+                "action": action_type,
+                "customer": last_activity.customer.name,
+                "timestamp": timezone.localtime(last_activity.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "filename": last_activity.filename
+            }
+        
+        # Get current time for customer selection
+        from datetime import datetime
+        import zoneinfo
+        ist = zoneinfo.ZoneInfo('Asia/Kolkata')
+        current_time = datetime.now(ist).strftime('%d-%m-%Y %I:%M %p')
+        
+        # Always use current time for sticky notes
+        customer_selection_time = current_time
+        
+        # Get more detailed info about previous temperature source
+        previous_temp_details = "No previous temperature found"
+        if previous_tracker_temperature:
+            if old_tracker:
+                previous_temp_details = f"From previous tracker • {timezone.localtime(old_tracker.timestamp).strftime('%d-%m-%Y %I:%M %p')}"
+            elif 'previous_tec' in locals() and previous_tec:
+                previous_temp_details = f"From previous report • {timezone.localtime(previous_tec.timestamp).strftime('%d-%m-%Y %I:%M %p')}"
+            elif 'previous_tracker_with_diff_temp' in locals() and previous_tracker_with_diff_temp:
+                previous_temp_details = f"From different tracker • {timezone.localtime(previous_tracker_with_diff_temp.timestamp).strftime('%d-%m-%Y %I:%M %p')}"
+
+        # Determine if we should show previous temperature
+        has_actual_previous = False
+        if previous_tracker_temperature:
+            # Only show as "previous" if we found it from OLD_TRACKER or second TEC record
+            # Don't show as "previous" if it's the same as current or if it's a new customer
+            if old_tracker or (previous_tec and tec_uploads.count() >= 2):
+                has_actual_previous = True
+        
+        # Get Previous Tracker Information
+        previous_tracker_data = None
+        if has_actual_previous and old_tracker:
+            previous_tracker_data = {
+                "filename": old_tracker.generated_file or "Previous Tracker",
+                "customer": old_tracker.customer.name,
+                "timestamp": timezone.localtime(old_tracker.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "threshold": old_tracker.threshold,
+                "file_url": f"/download?filename={old_tracker.generated_file}" if old_tracker.generated_file else None
+            }
+        elif has_actual_previous and previous_tec:
+            # If no old_tracker but we have previous TEC, create synthetic previous tracker info
+            previous_tracker_data = {
+                "filename": f"Previous Tracker ({previous_tec.threshold}°C)",
+                "customer": previous_tec.customer.name,
+                "timestamp": timezone.localtime(previous_tec.timestamp).strftime('%d-%m-%Y %I:%M %p'),
+                "threshold": previous_tec.threshold,
+                "file_url": None  # No file for TEC records
+            }
+        
+        return JsonResponse({
+            "status": "success",
+            "current_customer": {
+                "name": selected_customer_name,
+                "selected_time": customer_selection_time,
+                "previous_temperature": previous_tracker_temperature if has_actual_previous else None,  # Only show if actually previous
+                "previous_temperature_details": previous_temp_details if has_actual_previous else None,
+                "current_temperature": last_tracker.threshold if last_tracker and last_tracker.threshold else None,
+                "is_new_customer": not has_actual_previous  # Flag to indicate new customer
+            },
+            "last_tracker": last_tracker_data,
+            "previous_tracker": previous_tracker_data,  # NEW: Add previous tracker info
+            "last_activity": last_activity_data
+        })
+        
+    except Exception as e:
+        print(f"Error in get_sticky_notes_data: {str(e)}")
+        return JsonResponse({"status": "error", "message": f"Error getting sticky notes data: {str(e)}"})
+
+@login_required
+def validate_filename(request):
+    """
+    API endpoint to validate if a filename contains the selected customer's name
+    """
+    if 'selected_customer_id' not in request.session:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    filename = request.GET.get('filename', '')
+    if not filename:
+        return JsonResponse({"status": "error", "message": "No filename provided"})
+    
+    selected_customer_id = request.session.get('selected_customer_id')
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+    except Customer.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+    
+    is_valid = validate_filename_contains_customer_name(filename, customer.name)
+    
+    return JsonResponse({
+        "status": "success",
+        "is_valid": is_valid,
+        "customer_name": customer.name,
+        "message": "Filename is valid" if is_valid else f"Filename must contain customer name '{customer.name}'"
+    })
+
+@login_required
+def upload_tracker_generated(request):
+    """
+    Upload tracker files directly to tracker_generated folder
+    """
+    print(f"upload_tracker_generated called with method: {request.method}")
+    print(f"FILES in request: {list(request.FILES.keys())}")
+    
+    # Check if customer is selected
+    if 'selected_customer_id' not in request.session:
+        print("No customer selected")
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    if request.method == "POST":
+        tracker_file = request.FILES.get("tracker_generated_file")
+        print(1233221)
+        print(f"tracker_generated_file: {tracker_file}")
+        if not tracker_file:
+            print("No file uploaded")
+            return JsonResponse({"status": "error", "message": "No file uploaded"})
+            
+        selected_customer_id = request.session.get('selected_customer_id')
+        try:
+            customer = Customer.objects.get(id=selected_customer_id)
+        except Customer.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+            
+        # Check if filename contains customer name
+        if not validate_filename_contains_customer_name(tracker_file.name, customer.name):
+            return JsonResponse({
+                "status": "error", 
+                "message": f"File name must contain customer name '{customer.name}'. Please rename your file to include the customer name."
+            })
+        
+        # Ensure it's an Excel file
+        if not tracker_file.name.lower().endswith('.xlsx'):
+            return JsonResponse({
+                "status": "error", 
+                "message": "Please upload an Excel (.xlsx) file."
+            })
+        
+        print(f"Tracker generated file validation passed for: {tracker_file.name}")
+        print(f"Customer: {customer.name}")
+
+        # Save tracker file to Script directory (current tracker location)
+        tracker_path = SCRIPT_DIR / tracker_file.name
+        
+        # If file already exists, remove it first
+        if tracker_path.exists():
+            tracker_path.unlink()
+            print(f"Removed existing tracker file: {tracker_path}")
+
+        with open(tracker_path, "wb") as f:
+            for chunk in tracker_file.chunks():
+                f.write(chunk)
+        
+        print(f"Tracker file {tracker_file.name} saved to Script directory")
+        
+        # Check if there's an existing tracker for this customer
+        existing_tracker = UploadLog.objects.filter(
+            customer=customer,
+            generated_file__isnull=False,
+            is_deleted=False
+        ).exclude(generated_file='').exclude(upload_type='OLD_TRACKER').first()
+        
+        if existing_tracker:
+            # Move existing tracker to old_tracker
+            print(f"🔄 Moving existing tracker {existing_tracker.generated_file} to OLD_TRACKER")
+            
+            try:
+                base_name = existing_tracker.generated_file.replace('.xlsx', '')
+                old_tracker_filename = f"{base_name}.xlsx"
+                
+                # Copy file to old_tracker directory
+                old_script_path = SCRIPT_DIR / existing_tracker.generated_file
+                old_path = OLD_TRACKER_DIR / old_tracker_filename
+                
+                if old_script_path.exists():
+                    if old_path.exists():
+                        old_path.unlink()
+                    
+                    shutil.copy2(str(old_script_path), str(old_path))
+                    print(f"📁 COPIED old tracker to old_tracker directory")
+                    
+                    # Create or update OLD_TRACKER record
+                    old_tracker_record, created = UploadLog.objects.update_or_create(
+                        customer=customer,
+                        upload_type='OLD_TRACKER',
+                        defaults={
+                            'filename': existing_tracker.filename or existing_tracker.generated_file,
+                            'status': 'Success',
+                            'threshold': existing_tracker.threshold,
+                            'generated_file': old_tracker_filename,
+                            'is_deleted': False,
+                            'timestamp': existing_tracker.timestamp
+                        }
+                    )
+                    
+                    # Soft delete the old tracker
+                    existing_tracker.soft_delete(user=request.user if hasattr(request, 'user') else None, reason="Replaced by uploaded tracker")
+                    
+            except Exception as e:
+                print(f"❌ Failed to move old tracker: {e}")
+        
+        # Create upload log for new tracker
+        upload_log = UploadLog.objects.create(
+            filename=tracker_file.name,
+            upload_type='TRACKER_UPLOAD',  # Use dedicated type for uploaded trackers
+            status='Success',
+            customer=customer,
+            generated_file=tracker_file.name
+        )
+        print(f"Created TRACKER_GENERATED upload log: {upload_log.id}")
+        
+        return JsonResponse({
+            "status": "success",
+            "message": f"Tracker '{tracker_file.name}' uploaded successfully to tracker_generated.",
+            "filename": tracker_file.name
+        })
+
+    return JsonResponse({"status": "error", "message": "Invalid request method"})
+
+@login_required
+def get_previous_threshold(request):
+    """
+    API endpoint to get the previous temperature threshold for the current customer
+    """
+    if 'selected_customer_id' not in request.session:
+        return JsonResponse({"status": "error", "message": "No customer selected"})
+    
+    selected_customer_id = request.session.get('selected_customer_id')
+    try:
+        customer = Customer.objects.get(id=selected_customer_id)
+    except Customer.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Selected customer no longer exists"})
+    
+    # Get the most recent threshold from TEC uploads for this customer
+    recent_upload = UploadLog.objects.filter(
+        customer=customer,
+        upload_type='TEC',
+        threshold__isnull=False,
+        is_deleted=False
+    ).order_by('-timestamp').first()
+    
+    if recent_upload and recent_upload.threshold:
+        return JsonResponse({
+            "status": "success",
+            "previous_threshold": recent_upload.threshold,
+            "last_used": recent_upload.timestamp.strftime('%d-%m-%Y %I:%M %p')
+        })
+    else:
+        return JsonResponse({
+            "status": "success",
+            "previous_threshold": None,
+            "message": "No previous threshold found"
+        })
+
+
+
+
+
+
+
+
+
+

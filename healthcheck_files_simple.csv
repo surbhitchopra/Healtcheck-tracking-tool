@@ -1,0 +1,7 @@
+customer,file_type,original_filename,stored_filename,file_path,file_size,is_processed
+1,TEC_REPORT,Tata_TTML_Report.xlsx,Tata_TTML_Report.xlsx,/uploads/tata/reports/Tata_TTML_Report.xlsx,1024000,1
+1,INVENTORY_CSV,Tata_TTML_Inventory.csv,Tata_TTML_Inventory.csv,/uploads/tata/inventory/Tata_TTML_Inventory.csv,512000,1
+2,TEC_REPORT,Tata_TTSL_Report.xlsx,Tata_TTSL_Report.xlsx,/uploads/tata/reports/Tata_TTSL_Report.xlsx,950000,1
+2,INVENTORY_CSV,Tata_TTSL_Inventory.csv,Tata_TTSL_Inventory.csv,/uploads/tata/inventory/Tata_TTSL_Inventory.csv,480000,1
+3,TEC_REPORT,Timedotcom_Report.xlsx,Timedotcom_Report.xlsx,/uploads/timedotcom/reports/Timedotcom_Report.xlsx,800000,1
+4,TEC_REPORT,Airtel_Report.xlsx,Airtel_Report.xlsx,/uploads/airtel/reports/Airtel_Report.xlsx,720000,1

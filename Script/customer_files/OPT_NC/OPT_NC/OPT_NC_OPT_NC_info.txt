@@ -1,0 +1,51 @@
+?? Customer Information
+
+
+
+Name: OPT_NC
+Network: OPT_NC
+
+Network Type: HealthCheck
+
+Setup Status: NEW
+
+Created: 2025-10-07 16:36:13
+
+Customer ID: 669
+
+
+
+Folder Structure:
+
++-- ?? host_files/        ? CSV inventory files
+
++-- ?? tec_reports/       ? TEC Health Check Reports (.xlsx)
+
++-- ?? generated_trackers/ ? Auto-generated tracker files
+
++-- ?? old_trackers/      ? Manual uploads & archives
+
++-- ?? inventory_files/   ? Remote inventory data (.csv)
+
+
+
+?? File Management:
+
+ Files uploaded through web dashboard are automatically organized
+
+ Old files are cleaned up to prevent duplicates
+
+ Generated tracker files appear in both generated_trackers/ and old_trackers/
+
+ All files remain available for download through dashboard
+
+
+
+?? This customer is ready for health check processing!
+
+    Upload files through the web dashboard and they'll appear in the appropriate folders.
+
+
+
+??  IMPORTANT: When deleting this customer/network, all files in this directory will be permanently removed!
+

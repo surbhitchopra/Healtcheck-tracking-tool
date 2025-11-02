@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Processing - 1830PSS Health Check{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Health Check Processing</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-gear-fill me-2"></i>Processing Session: {{ session.session_id }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <strong>Network:</strong> {{ session.customer.name }}<br>
+                        <strong>Started:</strong> {{ session.created_at|date:"M d, Y H:i" }}<br>
+                        <strong>Type:</strong> {{ session.get_session_type_display }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Status:</strong> 
+                        <span class="status-badge status-{{ session.status|lower }}">
+                            {{ session.get_status_display }}
+                        </span><br>
+                        <strong>Progress:</strong> {{ session.progress_percentage|default:"0" }}%
+                    </div>
+                </div>
+
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: {{ session.progress_percentage|default:"0" }}%">
+                        {{ session.progress_percentage|default:"0" }}%
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Current Step:</strong> {{ session.current_step|default:"Initializing..." }}
+                </div>
+
+                {% if session.status_message %}
+                <div class="alert alert-secondary">
+                    <strong>Status:</strong> {{ session.status_message }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Session Details</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Files Expected:</strong> {{ session.files_expected }}</p>
+                <p><strong>Files Received:</strong> {{ session.files_received }}</p>
+                <p><strong>Processing Duration:</strong> {{ session.get_processing_duration_str|default:"Just started" }}</p>
+                
+                {% if session.status == 'COMPLETED' %}
+                <div class="d-grid">
+                    <a href="{% url 'health_check_results' session.session_id %}" class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i>View Results
+                    </a>
+                </div>
+                {% elif session.status == 'FAILED' %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Processing failed. Please check logs or try again.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if session.status == 'PROCESSING' %}
+<script>
+// Auto-refresh every 3 seconds while processing
+setTimeout(function() {
+    location.reload();
+}, 3000);
+</script>
+{% endif %}
+{% endblock %}

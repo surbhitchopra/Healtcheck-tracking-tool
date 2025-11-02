@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}New Network Setup - 1830PSS Health Check{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">New Network Setup</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-upload me-2"></i>Setup Files for {{ customer.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>New Network Setup:</strong> Please upload all 3 required setup files for network initialization.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.hc_tracker_file.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ form.hc_tracker_file.label }}
+                        </label>
+                        {{ form.hc_tracker_file }}
+                        <div class="form-text">{{ form.hc_tracker_file.help_text }}</div>
+                        {% if form.hc_tracker_file.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {% for error in form.hc_tracker_file.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.global_ignore_txt.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-text me-2"></i>{{ form.global_ignore_txt.label }}
+                        </label>
+                        {{ form.global_ignore_txt }}
+                        <div class="form-text">{{ form.global_ignore_txt.help_text }}</div>
+                        {% if form.global_ignore_txt.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {% for error in form.global_ignore_txt.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.selective_ignore_xlsx.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ form.selective_ignore_xlsx.label }}
+                        </label>
+                        {{ form.selective_ignore_xlsx }}
+                        <div class="form-text">{{ form.selective_ignore_xlsx.help_text }}</div>
+                        {% if form.selective_ignore_xlsx.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {% for error in form.selective_ignore_xlsx.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+
+                    <!-- Display form-wide errors -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary me-md-2">❌</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-2"></i>Setup Network
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Setup Requirements</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>HC Issues Tracker Template</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Global Ignore Test Cases</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Selective Ignore Test Cases</li>
+                </ul>
+                <div class="alert alert-warning mt-3">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <small>These files will be renamed automatically based on your network name after upload.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Customer Information</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Customer:</strong> {{ customer.name }}</p>
+                <p><strong>Network Type:</strong> {{ customer.network_type }}</p>
+                <p><strong>Status:</strong> <span class="badge bg-warning">{{ customer.setup_status }}</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Bootstrap form classes
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+        input.classList.add('form-control');
+    });
+    
+    // Add file validation feedback
+    fileInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const fileName = this.files[0]?.name;
+            if (fileName) {
+                // Show selected file name
+                const helpText = this.parentElement.querySelector('.form-text');
+                if (helpText) {
+                    helpText.innerHTML = `<strong>Selected:</strong> ${fileName}<br>${helpText.textContent}`;
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

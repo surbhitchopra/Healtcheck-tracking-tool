@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Regular Processing - 1830PSS Health Check{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Regular Processing</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-upload me-2"></i>Upload Files for {{ customer.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Regular Processing:</strong> Please upload the {{ files_expected }} required files for health check analysis.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.tec_report_file.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark me-2"></i>TEC Report File
+                        </label>
+                        {{ form.tec_report_file }}
+                        <div class="form-text">Upload the latest TEC report file</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.inventory_csv.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-text me-2"></i>Inventory CSV File
+                        </label>
+                        {{ form.inventory_csv }}
+                        <div class="form-text">Upload the current inventory CSV file</div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-2"></i>Start Processing
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Processing Requirements</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>TEC Report</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Inventory CSV</li>
+                </ul>
+                <hr>
+                <p class="small text-muted">
+                    The existing HC Tracker and ignore lists will be used for this processing.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Bootstrap form classes
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+        input.classList.add('form-control');
+    });
+});
+</script>
+{% endblock %}

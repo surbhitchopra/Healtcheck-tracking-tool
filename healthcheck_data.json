@@ -1,0 +1,171 @@
+[
+  {
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+      "username": "admin",
+      "email": "admin@example.com",
+      "is_staff": true,
+      "is_superuser": true,
+      "password": "pbkdf2_sha256$600000$dummy$hash",
+      "date_joined": "2025-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "HealthCheck_app.customer",
+    "pk": 1,
+    "fields": {
+      "name": "Tata",
+      "network_name": "TTML",
+      "network_type": "Excel Imported",
+      "setup_status": "READY",
+      "created_at": "2025-01-15T00:00:00Z",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 27,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {"2025-01": "2025-01-08", "2025-02": "2025-02-05"},
+      "total_runs": 9
+    }
+  },
+  {
+    "model": "HealthCheck_app.customer", 
+    "pk": 2,
+    "fields": {
+      "name": "Tata",
+      "network_name": "TTSL_BackBone", 
+      "network_type": "Excel Imported",
+      "setup_status": "READY",
+      "created_at": "2025-01-15T00:00:00Z",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 40,
+      "ne_type": "1678MCC", 
+      "gtac": "Classic",
+      "monthly_runs": {"2025-01": "2025-01-10", "2025-02": "2025-02-12"},
+      "total_runs": 8
+    }
+  },
+  {
+    "model": "HealthCheck_app.customer",
+    "pk": 3,
+    "fields": {
+      "name": "Timedotcom",
+      "network_name": "Malaysia Network",
+      "network_type": "Excel Imported", 
+      "setup_status": "READY",
+      "created_at": "2025-01-15T00:00:00Z",
+      "is_deleted": false,
+      "country": "Malaysia",
+      "node_qty": 15,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {"2025-01": "2025-01-15", "2025-03": "2025-03-10"},
+      "total_runs": 5
+    }
+  },
+  {
+    "model": "HealthCheck_app.customer",
+    "pk": 4,
+    "fields": {
+      "name": "airtel", 
+      "network_name": "India Network",
+      "network_type": "Excel Imported",
+      "setup_status": "READY",
+      "created_at": "2025-01-15T00:00:00Z",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 25,
+      "ne_type": "1830 PSS",
+      "gtac": "Classic", 
+      "monthly_runs": {"2024-12": "2024-12-20", "2025-01": "2025-01-18"},
+      "total_runs": 12
+    }
+  },
+  {
+    "model": "HealthCheck_app.healthchecksession",
+    "pk": 1,
+    "fields": {
+      "customer": 1,
+      "session_id": "tata-ttml-session-001",
+      "session_type": "REGULAR_PROCESSING",
+      "status": "COMPLETED",
+      "initiated_by": 1,
+      "created_at": "2025-01-15T10:00:00Z",
+      "completed_at": "2025-01-15T10:30:00Z",
+      "files_expected": 2,
+      "files_received": 2,
+      "progress_percentage": 100,
+      "current_step": "Processing completed",
+      "output_tracker_filename": "Tata_TTML_HC_Issues_Tracker.xlsx",
+      "output_tracker_path": "/uploads/Tata/generated/",
+      "status_message": "Health check completed successfully"
+    }
+  },
+  {
+    "model": "HealthCheck_app.healthchecksession",
+    "pk": 2, 
+    "fields": {
+      "customer": 2,
+      "session_id": "tata-ttsl-session-001",
+      "session_type": "REGULAR_PROCESSING", 
+      "status": "COMPLETED",
+      "initiated_by": 1,
+      "created_at": "2025-01-15T11:00:00Z",
+      "completed_at": "2025-01-15T11:25:00Z",
+      "files_expected": 2,
+      "files_received": 2,
+      "progress_percentage": 100,
+      "current_step": "Processing completed",
+      "output_tracker_filename": "Tata_TTSL_HC_Issues_Tracker.xlsx", 
+      "output_tracker_path": "/uploads/Tata/generated/",
+      "status_message": "Health check completed successfully"
+    }
+  },
+  {
+    "model": "HealthCheck_app.healthcheckfile",
+    "pk": 1,
+    "fields": {
+      "customer": 1,
+      "session": 1,
+      "file_type": "TEC_REPORT",
+      "original_filename": "Tata_TTML_TEC_Report.xlsx",
+      "stored_filename": "Tata_TTML_TEC_Report.xlsx",
+      "file_path": "/uploads/Tata/reports/Tata_TTML_TEC_Report.xlsx",
+      "uploaded_at": "2025-01-15T10:00:00Z",
+      "file_size": 1024000,
+      "is_processed": true
+    }
+  },
+  {
+    "model": "HealthCheck_app.healthcheckfile",
+    "pk": 2,
+    "fields": {
+      "customer": 1,
+      "session": 1, 
+      "file_type": "INVENTORY_CSV",
+      "original_filename": "Tata_TTML_Inventory.csv",
+      "stored_filename": "Tata_TTML_Inventory.csv", 
+      "file_path": "/uploads/Tata/inventory/Tata_TTML_Inventory.csv",
+      "uploaded_at": "2025-01-15T10:02:00Z",
+      "file_size": 512000,
+      "is_processed": true
+    }
+  },
+  {
+    "model": "HealthCheck_app.healthcheckfile",
+    "pk": 3,
+    "fields": {
+      "customer": 2,
+      "session": 2,
+      "file_type": "TEC_REPORT", 
+      "original_filename": "Tata_TTSL_TEC_Report.xlsx",
+      "stored_filename": "Tata_TTSL_TEC_Report.xlsx",
+      "file_path": "/uploads/Tata/reports/Tata_TTSL_TEC_Report.xlsx",
+      "uploaded_at": "2025-01-15T11:00:00Z",
+      "file_size": 950000,
+      "is_processed": true
+    }
+  }
+]

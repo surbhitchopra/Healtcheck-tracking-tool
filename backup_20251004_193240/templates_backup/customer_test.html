@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn { padding: 10px 20px; margin: 10px; background: #007cba; color: white; border: none; cursor: pointer; }
+        .stats { margin: 20px 0; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Excel Customer Dashboard - Test</h1>
+    
+    <div class="stats">
+        <strong>Customers:</strong> <span id="customer-count">Loading...</span>
+        <button class="btn" onclick="loadData()">Refresh Data</button>
+    </div>
+    
+    <table id="customer-table">
+        <thead>
+            <tr>
+                <th>Customer</th>
+                <th>Network</th>
+                <th>Country</th>
+                <th>Node Qty</th>
+                <th>NE Type</th>
+                <th>gTAC</th>
+            </tr>
+        </thead>
+        <tbody id="customer-table-body">
+            <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+    </table>
+    
+    <script>
+        function loadData() {
+            console.log('Loading Excel data...');
+            
+            fetch('/customer-dashboard/excel/', {
+                method: 'GET',
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Got data:', data);
+                
+                if (data.customers && Object.keys(data.customers).length > 0) {
+                    const count = Object.keys(data.customers).length;
+                    document.getElementById('customer-count').textContent = count + ' customers found';
+                    
+                    const tableBody = document.getElementById('customer-table-body');
+                    let rows = '';
+                    
+                    Object.values(data.customers).forEach(customer => {
+                        rows += `<tr>
+                            <td>${customer.Customer || customer.name || '-'}</td>
+                            <td>${customer.Network || customer.network || '-'}</td>
+                            <td>${customer.Country || customer.country || '-'}</td>
+                            <td>${customer['Node Qty'] || customer.node_qty || '-'}</td>
+                            <td>${customer['NE Type'] || customer.ne_type || '-'}</td>
+                            <td>${customer.gTAC || customer.gtac || '-'}</td>
+                        </tr>`;
+                    });
+                    
+                    tableBody.innerHTML = rows;
+                    console.log('Table updated with', count, 'customers');
+                } else {
+                    document.getElementById('customer-count').textContent = 'No data found';
+                    document.getElementById('customer-table-body').innerHTML = '<tr><td colspan="6">No customers found</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('customer-count').textContent = 'Error loading data';
+                document.getElementById('customer-table-body').innerHTML = '<tr><td colspan="6">Error loading data</td></tr>';
+            });
+        }
+        
+        // Load data when page loads
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>

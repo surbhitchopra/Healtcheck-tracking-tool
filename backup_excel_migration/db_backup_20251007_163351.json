@@ -1,0 +1,621 @@
+{
+  "customers": [
+    {
+      "id": 588,
+      "name": "OPT_NC",
+      "network_name": "OPT_NC",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:48:45.449881+00:00",
+      "is_deleted": false,
+      "country": "New Caledonia",
+      "node_qty": 31,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-01": "2025-01-03",
+        "2025-03": "2025-03-03",
+        "2025-04": "2025-04-04",
+        "2025-05": "2025-05-03",
+        "2025-06": "2025-06-19",
+        "2025-08": "2025-08-27"
+      },
+      "total_runs": 6
+    },
+    {
+      "id": 610,
+      "name": "Tata",
+      "network_name": "TTML",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.594753+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 27,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-08",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 611,
+      "name": "Tata",
+      "network_name": "TTSL_BackBone",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.602152+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 40,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-05",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 612,
+      "name": "Tata",
+      "network_name": "TTSL North",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.605800+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 17,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-05",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 613,
+      "name": "Tata",
+      "network_name": "TTSL_EAST",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.610293+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 14,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-05",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 614,
+      "name": "Tata",
+      "network_name": "TTSL_South",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.614785+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 12,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-05",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 615,
+      "name": "Tata",
+      "network_name": "Bharti Legacy",
+      "network_type": "1678MCC",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.618166+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 19,
+      "ne_type": "1678MCC",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-05",
+        "2025-07": "2025-07-07",
+        "2025-08": "2025-08-26"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 616,
+      "name": "Tata",
+      "network_name": "TTSL_ONE",
+      "network_type": "1830 ONE",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.620988+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 14,
+      "ne_type": "1830 ONE",
+      "gtac": "Classic",
+      "monthly_runs": {
+        "2025-06": "2025-06-04",
+        "2025-07": "2025-07-02",
+        "2025-08": "2025-08-05",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 617,
+      "name": "Moratel",
+      "network_name": "Moratelindo_ONE",
+      "network_type": "1830 ONE",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.623993+00:00",
+      "is_deleted": false,
+      "country": "Indonesia",
+      "node_qty": 48,
+      "ne_type": "1830 ONE",
+      "gtac": "Classic",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 618,
+      "name": "LTV",
+      "network_name": "LTV",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.627949+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 148,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-08",
+        "2025-07": "2025-07-11",
+        "2025-08": "2025-08-11",
+        "2025-09": "2025-09-10"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 619,
+      "name": "Maxix",
+      "network_name": "Maxis_M_Sdn_Bhd",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.630743+00:00",
+      "is_deleted": false,
+      "country": "Malaysia",
+      "node_qty": 394,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2026-06-16"
+      },
+      "total_runs": 1
+    },
+    {
+      "id": 620,
+      "name": "Maxix",
+      "network_name": "Maxis_M_Sdn_Bhd_OCS",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.633441+00:00",
+      "is_deleted": false,
+      "country": "Malaysia",
+      "node_qty": 10,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2026-06-16"
+      },
+      "total_runs": 1
+    },
+    {
+      "id": 621,
+      "name": "Worldlink",
+      "network_name": "Worldlink",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.635978+00:00",
+      "is_deleted": false,
+      "country": "Nepal",
+      "node_qty": 21,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-08": "2025-08-10"
+      },
+      "total_runs": 1
+    },
+    {
+      "id": 622,
+      "name": "Timedotcom",
+      "network_name": "TIMEDOTCOM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.640100+00:00",
+      "is_deleted": false,
+      "country": "Malaysia",
+      "node_qty": 89,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-06",
+        "2025-07": "2025-07-09",
+        "2025-08": "2025-08-06"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 623,
+      "name": "Telekom_Malaysia",
+      "network_name": "Telekom_Malaysia",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.643893+00:00",
+      "is_deleted": false,
+      "country": "Malaysia",
+      "node_qty": 173,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-30",
+        "2025-07": "2025-07-13",
+        "2025-09": "2025-09-04"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 624,
+      "name": "KEPCO",
+      "network_name": "KEPCO",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.646906+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 110,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 625,
+      "name": "SKB_LH",
+      "network_name": "SKB_LH",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.649912+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 128,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 626,
+      "name": "KT_B2B_KINX",
+      "network_name": "KT_B2B_KINX",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.652829+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 3,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 627,
+      "name": "LGU_HANA_BANK",
+      "network_name": "LGU_HANA_BANK",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.656523+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 4,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 628,
+      "name": "NongHyup-DCI",
+      "network_name": "NongHyup-DCI",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.661328+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 14,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 629,
+      "name": "Kakao",
+      "network_name": "Kakao_DCI",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.664664+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 17,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 630,
+      "name": "Kakao",
+      "network_name": "Kakao_EnT",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.667723+00:00",
+      "is_deleted": false,
+      "country": "Korea",
+      "node_qty": 9,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    },
+    {
+      "id": 631,
+      "name": "Moratelindo",
+      "network_name": "Moratelindo_PSS36",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.671403+00:00",
+      "is_deleted": false,
+      "country": "Indonesia",
+      "node_qty": 32,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-09",
+        "2025-07": "2025-07-11",
+        "2025-08": "2025-08-11",
+        "2025-09": "2025-09-08"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 632,
+      "name": "Moratelindo",
+      "network_name": "Moratelindo_PSS24",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.675644+00:00",
+      "is_deleted": false,
+      "country": "Indonesia",
+      "node_qty": 59,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-09",
+        "2025-07": "2025-07-16",
+        "2025-08": "2025-08-11",
+        "2025-09": "2025-09-08"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 633,
+      "name": "Moratelindo",
+      "network_name": "Moratelindo_WDM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.684277+00:00",
+      "is_deleted": false,
+      "country": "Indonesia",
+      "node_qty": 149,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-09",
+        "2025-07": "2025-07-11",
+        "2025-08": "2025-08-11",
+        "2025-09": "2025-09-09"
+      },
+      "total_runs": 4
+    },
+    {
+      "id": 634,
+      "name": "BSNL",
+      "network_name": "BSNL_East_Zone_DWDM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.693385+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 505,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-13",
+        "2025-07": "2025-07-08"
+      },
+      "total_runs": 2
+    },
+    {
+      "id": 635,
+      "name": "BSNL",
+      "network_name": "BSNL_East_Zone_OTN",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.698278+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 75,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-13",
+        "2025-07": "2025-07-08"
+      },
+      "total_runs": 2
+    },
+    {
+      "id": 636,
+      "name": "BSNL",
+      "network_name": "BSNL_North_Zone_DWDM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.701366+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 662,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-12",
+        "2025-07": "2025-07-08",
+        "2025-08": "2025-08-26"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 637,
+      "name": "BSNL",
+      "network_name": "BSNL_North_Zone_OTN",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.705527+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 80,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-12",
+        "2025-07": "2025-07-08",
+        "2025-08": "2025-08-26"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 638,
+      "name": "BSNL",
+      "network_name": "BSNL_South_Zone_DWDM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.708732+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 373,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-22",
+        "2025-07": "2025-07-26",
+        "2025-08": "2025-08-14"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 639,
+      "name": "BSNL",
+      "network_name": "BSNL_South_Zone_OTN",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.711644+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 67,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-22",
+        "2025-07": "2025-07-26",
+        "2025-08": "2025-08-14"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 640,
+      "name": "BSNL",
+      "network_name": "BSNL_West_Zone_DWDM",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.714329+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 642,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-13",
+        "2025-07": "2025-07-24",
+        "2025-08": "2025-08-09"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 641,
+      "name": "BSNL",
+      "network_name": "BSNL_West_Zone_OTN",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.717007+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 65,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {
+        "2025-06": "2025-06-13",
+        "2025-07": "2025-07-24",
+        "2025-08": "2025-08-09"
+      },
+      "total_runs": 3
+    },
+    {
+      "id": 642,
+      "name": "Railtel",
+      "network_name": "Railtel",
+      "network_type": "1830 PSS",
+      "setup_status": "READY",
+      "created_at": "2025-10-07 10:49:49.720106+00:00",
+      "is_deleted": false,
+      "country": "India",
+      "node_qty": 89,
+      "ne_type": "1830 PSS",
+      "gtac": "PSS",
+      "monthly_runs": {},
+      "total_runs": 0
+    }
+  ],
+  "files": [],
+  "backup_timestamp": "2025-10-07 16:33:51.200226"
+}

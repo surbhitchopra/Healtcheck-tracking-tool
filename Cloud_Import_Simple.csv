@@ -1,0 +1,37 @@
+name,network_name,country,node_qty,ne_type,gtac,setup_status,total_runs,network_type
+Tata,TTML,India,27,1678MCC,Classic,NEW,9,Excel Imported
+Tata,TTSL_BackBone,India,40,1678MCC,Classic,NEW,9,Excel Imported
+Tata,TTSL North,India,17,1678MCC,Classic,NEW,9,Excel Imported
+Tata,TTSL_EAST,India,14,1678MCC,Classic,NEW,9,Excel Imported
+Tata,TTSL_South,India,12,1678MCC,Classic,NEW,9,Excel Imported
+Tata,Bharti Legacy,India,19,1678MCC,Classic,NEW,6,Excel Imported
+Tata,TTSL_ONE,India,14,1830 ONE,Classic,NEW,9,Excel Imported
+Moratel,Moratelindo_ONE,Indonesia,48,1830 ONE,Classic,NEW,0,Excel Imported
+LTV,LTV,India,148,1830 PSS,PSS,NEW,9,Excel Imported
+Maxix,Maxis_M_Sdn_Bhd,Malaysia,394,1830 PSS,PSS,NEW,3,Excel Imported
+Maxix,Maxis_M_Sdn_Bhd_OCS,Malaysia,10,1830 PSS,PSS,NEW,2,Excel Imported
+Worldlink,Worldlink,Nepal,21,1830 PSS,PSS,NEW,5,Excel Imported
+OPT_NC,OPT_NC,New Caledonia,31,1830 PSS,PSS,READY,7,Excel Imported
+Telekom_Malaysia,Telekom_Malaysia,Malaysia,173,1830 PSS,PSS,NEW,5,Excel Imported
+KEPCO,KEPCO,Korea,110,1830 PSS,PSS,NEW,1,Excel Imported
+SKB_LH,SKB_LH,Korea,128,1830 PSS,PSS,NEW,1,Excel Imported
+KT_B2B_KINX,KT_B2B_KINX,Korea,3,1830 PSS,PSS,NEW,1,Excel Imported
+LGU_HANA_BANK,LGU_HANA_BANK,Korea,4,1830 PSS,PSS,NEW,1,Excel Imported
+NongHyup-DCI,NongHyup-DCI,Korea,14,1830 PSS,PSS,NEW,1,Excel Imported
+Kakao,Kakao_DCI,Korea,17,1830 PSS,PSS,NEW,1,Excel Imported
+Kakao,Kakao_EnT,Korea,9,1830 PSS,PSS,NEW,1,Excel Imported
+Moratelindo,Moratelindo_PSS36,Indonesia,32,1830 PSS,PSS,NEW,9,Excel Imported
+Moratelindo,Moratelindo_PSS24,Indonesia,59,1830 PSS,PSS,READY,10,Excel Imported
+Moratelindo,Moratelindo_WDM,Indonesia,149,1830 PSS,PSS,NEW,9,Excel Imported
+BSNL,BSNL_East_Zone_DWDM,India,505,1830 PSS,PSS,READY,4,Excel Imported
+BSNL,BSNL_East_Zone_OTN,India,75,1830 PSS,PSS,NEW,7,Excel Imported
+BSNL,BSNL_North_Zone_DWDM,India,662,1830 PSS,PSS,READY,5,Excel Imported
+BSNL,BSNL_North_Zone_OTN,India,80,1830 PSS,PSS,NEW,8,Excel Imported
+BSNL,BSNL_South_Zone_DWDM,India,373,1830 PSS,PSS,NEW,8,Excel Imported
+BSNL,BSNL_South_Zone_OTN,India,67,1830 PSS,PSS,NEW,8,Excel Imported
+BSNL,BSNL_West_Zone_DWDM,India,642,1830 PSS,PSS,READY,5,Excel Imported
+BSNL,BSNL_West_Zone_OTN,India,65,1830 PSS,PSS,NEW,8,Excel Imported
+Railtel,Railtel,India,89,1830 PSS,PSS,NEW,5,Excel Imported
+airtel,Unknown Network,Not Specified,0,1830 PSS,PSS,NEW,0,Excel Imported
+Timedotcom,Unknown Network,Not Specified,0,1830 PSS,PSS,NEW,0,Excel Imported
+Barti,Unknown Network,Not Specified,0,1830 PSS,PSS,NEW,0,Excel Imported

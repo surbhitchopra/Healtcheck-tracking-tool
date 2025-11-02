@@ -1,0 +1,37 @@
+Customer,Network,Country,Node Qty,NE Type,gTAC,Total Runs,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec
+Tata,TTML,India,27,1678MCC,Classic,9,08-Jan,01-Feb,03-Mar,05-Apr,02-May,04-Jun,02-Jul,08-Aug,04-Sep,-,-,-
+Tata,TTSL_BackBone,India,40,1678MCC,Classic,9,08-Jan,01-Feb,03-Mar,05-Apr,02-May,04-Jun,02-Jul,05-Aug,04-Sep,-,-,-
+Tata,TTSL North,India,17,1678MCC,Classic,9,08-Jan,01-Feb,03-Mar,07-Apr,02-May,04-Jun,02-Jul,05-Aug,04-Sep,-,-,-
+Tata,TTSL_EAST,India,14,1678MCC,Classic,9,08-Jan,01-Feb,03-Mar,05-Apr,02-May,04-Jun,02-Jul,05-Aug,04-Sep,-,-,-
+Tata,TTSL_South,India,12,1678MCC,Classic,9,08-Jan,01-Feb,03-Mar,02-Apr,02-May,04-Jun,02-Jul,05-Aug,04-Sep,-,-,-
+Tata,Bharti Legacy,India,19,1678MCC,Classic,6,-,Not Run,-,10-Apr,29-May,05-Jun,07-Jul,26-Aug,-,-,-,-
+Tata,TTSL_ONE,India,14,1830 ONE,Classic,9,09-Jan,02-Feb,04-Mar,07-Apr,02-May,04-Jun,02-Jul,05-Aug,04-Sep,-,-,-
+Moratel,Moratelindo_ONE,Indonesia,48,1830 ONE,Classic,0,-,-,-,-,-,-,-,-,-,-,-,-
+LTV,LTV,India,148,1830 PSS,PSS,9,11-Jan,05-Feb,09-Mar,10-Apr,13-May,08-Jun,11-Jul,11-Aug,10-Sep,-,-,-
+Maxix,Maxis_M_Sdn_Bhd,Malaysia,394,1830 PSS,PSS,3,02-Jan,-,17-Mar,-,-,16-Jun,-,-,-,-,-,-
+Maxix,Maxis_M_Sdn_Bhd_OCS,Malaysia,10,1830 PSS,PSS,2,-,-,17-Mar,-,-,16-Jun,-,-,-,-,-,-
+Worldlink,Worldlink,Nepal,21,1830 PSS,PSS,5,13-Jan,06-Feb,04-Mar,-,15-May,-,-,10-Aug,-,-,-,-
+OPT_NC,OPT_NC,New Caledonia,31,1830 PSS,PSS,7,03-Jan,-,03-Mar,04-Apr,03-May,19-Jun,-,27-Aug,-,08-Oct,-,-
+Telekom_Malaysia,Telekom_Malaysia,Malaysia,173,1830 PSS,PSS,5,Not Run,-,-,-,21-May,30-Jun,13-Jul,-,04-Sep,-,-,-
+KEPCO,KEPCO,Korea,110,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+SKB_LH,SKB_LH,Korea,128,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+KT_B2B_KINX,KT_B2B_KINX,Korea,3,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+LGU_HANA_BANK,LGU_HANA_BANK,Korea,4,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+NongHyup-DCI,NongHyup-DCI,Korea,14,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+Kakao,Kakao_DCI,Korea,17,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+Kakao,Kakao_EnT,Korea,9,1830 PSS,PSS,1,Not Run,-,-,-,-,-,-,-,-,-,-,-
+Moratelindo,Moratelindo_PSS36,Indonesia,32,1830 PSS,PSS,9,08-Jan,08-Feb,08-Mar,10-Apr,05-May,09-Jun,11-Jul,11-Aug,08-Sep,-,-,-
+Moratelindo,Moratelindo_PSS24,Indonesia,59,1830 PSS,PSS,10,08-Jan,08-Feb,08-Mar,11-Apr,05-May,09-Jun,16-Jul,11-Aug,08-Sep,08-Oct,-,-
+Moratelindo,Moratelindo_WDM,Indonesia,149,1830 PSS,PSS,9,08-Jan,08-Feb,08-Mar,11-Apr,05-May,09-Jun,11-Jul,11-Aug,09-Sep,-,-,-
+BSNL,BSNL_East_Zone_DWDM,India,505,1830 PSS,PSS,4,Not Started,Not Started,Not Started,Not Started,15-May,13-Jun,08-Jul,-,-,08-Oct,-,-
+BSNL,BSNL_East_Zone_OTN,India,75,1830 PSS,PSS,7,Not Started,Not Started,Not Started,Not Started,15-May,13-Jun,08-Jul,-,-,-,-,-
+BSNL,BSNL_North_Zone_DWDM,India,662,1830 PSS,PSS,5,Not Started,Not Started,Not Started,Not Started,03-May,12-Jun,08-Jul,26-Aug,-,08-Oct,-,-
+BSNL,BSNL_North_Zone_OTN,India,80,1830 PSS,PSS,8,Not Started,Not Started,Not Started,Not Started,03-May,12-Jun,08-Jul,26-Aug,-,-,-,-
+BSNL,BSNL_South_Zone_DWDM,India,373,1830 PSS,PSS,8,30-Jan,No Report,No Report,16-Apr,No Report,22-Jun,26-Jul,14-Aug,-,-,-,-
+BSNL,BSNL_South_Zone_OTN,India,67,1830 PSS,PSS,8,22-Jan,No Report,No Report,16-Apr,No Report,22-Jun,26-Jul,14-Aug,-,-,-,-
+BSNL,BSNL_West_Zone_DWDM,India,642,1830 PSS,PSS,5,Not Started,Not Started,14-Mar,No Report,No Report,13-Jun,24-Jul,09-Aug,-,08-Oct,-,-
+BSNL,BSNL_West_Zone_OTN,India,65,1830 PSS,PSS,8,Not Started,Not Started,14-Mar,No Report,No Report,13-Jun,24-Jul,09-Aug,-,-,-,-
+Railtel,Railtel,India,89,1830 PSS,PSS,5,Not Started,Not Started,Not Started,Not Started,Not Started,-,-,-,-,-,-,-
+airtel,Unknown,,0,1830 PSS,PSS,0,-,-,-,-,-,-,-,-,-,-,-,-
+Timedotcom,Unknown,,0,1830 PSS,PSS,0,-,-,-,-,-,-,-,-,-,-,-,-
+Barti,Unknown,,0,1830 PSS,PSS,0,-,-,-,-,-,-,-,-,-,-,-,-

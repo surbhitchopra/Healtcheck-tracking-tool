@@ -1,0 +1,448 @@
+{% extends 'base.html' %}
+
+{% block title %} Health Check  Tracking Tool {% endblock %}
+
+{% block extra_head %}
+{%load static %}
+  <style>
+    @font-face {
+     font-family: nokiaUlt;
+     src: url('{% static "assets/fonts/NokiaPureHeadline_Lt.woff" %}');
+     font-display: swap;
+    }
+    body {
+      background: #ffffff;
+      min-height: 100vh;
+      font-family: nokiaUlt;
+      
+    
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    .fade-in {
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(10px);
+      
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .step-card {
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+    }
+    .step-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+    .step-number {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+    .upload-btn {
+      background: linear-gradient(135deg, #2563eb,#003480 );
+      transition: all 0.3s ease;
+      box-shadow:  #2563eb;
+    }
+    .upload-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: #003480;
+    }
+    .file-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 8px 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .file-item:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      border-color: #3b82f6;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .header-gradient {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .success-gradient {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    .action-btn {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 8px;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(135deg, #4b5563, #374151);
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-10 px-4">
+  <div class="w-full max-w-4xl space-y-8 mx-auto">
+    <!-- Title -->
+    <div class="bg-white p-6 rounded-2xl shadow border border-blue-100 text-center">
+      <h1 class="text-3xl font-bold text-blue-800 mb-2">Health Checking Tracking Tool</h1>
+      <p class="text-blue-600 text-base">Monitor Network Health and Performance</p>
+    </div>
+
+    <div id="tracker-message" class="hidden p-4 rounded-xl text-center text-white font-medium"></div>
+
+    <!-- Step 1: TEC Upload -->
+    <div id="step1" class="fade-in visible step-card p-8 rounded-2xl">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+          <div class="step-number mr-4">1</div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Upload Health Check Files</h2>
+            <p class="text-gray-600 text-sm">Upload files based on network setup status</p>
+          </div>
+        </div>
+        
+        <!-- Change Customer Button - Small Size -->
+        <div class="ml-4 flex space-x-2">
+          <a href="{% url 'customer_selection' %}" 
+             class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-md font-medium text-xs transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-1">
+            <span>Change Network</span>
+          </a>
+        </div>
+      </div>
+      
+      <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+        <p class="text-sm text-yellow-800">
+          <strong>📋 Important:</strong> File name must contain customer name "<strong>{{ selected_customer.name }}</strong>" to be accepted.
+        </p>
+      </div>
+      
+      {% if selected_customer.setup_status == 'NEW' %}
+        <!-- NEW NETWORK SETUP (5 files) -->
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+          <h3 class="text-lg font-bold text-blue-800 mb-2">🆕 New Network Setup</h3>
+          <p class="text-sm text-blue-700 mb-2">
+            This network requires <strong>5 files</strong> for initial setup:
+          </p>
+          <ul class="text-sm text-blue-700 list-disc list-inside space-y-1">
+            <li>HC Tracker File (.xlsx)</li>
+            <li>Global Ignore Text File (.txt)</li> 
+            <li>Selective Ignore Excel File (.xlsx)</li>
+            <li>TEC Health Check Report (.xlsx)</li>
+            <li>Remote Inventory CSV File (.csv)</li>
+          </ul>
+        </div>
+        
+        <form id="health-check-form" action="{% url 'health_check_upload' selected_customer.id %}" method="post" enctype="multipart/form-data" class="space-y-6">
+          {% csrf_token %}
+          
+          <!-- HC Tracker File -->
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">1. Upload HC Tracker File</label>
+            <input type="file" id="hc-tracker" name="hc_tracker_file" accept=".xlsx" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="hc-tracker-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <!-- Global Ignore Text -->
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">2. Upload Global Ignore Text File</label>
+            <input type="file" id="global-ignore" name="global_ignore_txt" accept=".txt" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="global-ignore-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <!-- Selective Ignore Excel -->
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">3. Upload Selective Ignore Excel File</label>
+            <input type="file" id="selective-ignore" name="selective_ignore_xlsx" accept=".xlsx" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="selective-ignore-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <!-- TEC Report -->
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">4. Upload TEC Health Check Report</label>
+            <input type="file" id="tec-report" name="tec_report_file" accept=".xlsx" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="tec-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <!-- Inventory CSV -->
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">5. Upload Remote Inventory CSV File</label>
+            <input type="file" id="inventory-csv" name="inventory_csv" accept=".csv" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="csv-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <button type="submit" id="upload-submit-btn" class="upload-btn w-full py-4 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3">
+            <span class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span class="text-lg">🆕 Start New Network Setup (5 Files)</span>
+          </button>
+        </form>
+        
+      {% else %}
+        <!-- EXISTING NETWORK (2 files) -->
+        <div class="bg-green-50 border border-green-200 p-4 rounded-lg mb-4">
+          <h3 class="text-lg font-bold text-green-800 mb-2">🔄 Existing Network Health Check</h3>
+          <p class="text-sm text-green-700 mb-2">
+            This network requires <strong>2 files</strong> for regular health check processing:
+          </p>
+          <ul class="text-sm text-green-700 list-disc list-inside space-y-1">
+            <li>TEC Health Check Report (.xlsx)</li>
+            <li>Remote Inventory CSV File (.csv)</li>
+          </ul>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4">
+          <p class="text-sm text-blue-800">
+            <strong>💡 Need a Network Health Check Report? </strong> 
+            <a href="https://de711tec001.nice.nokia.net/tec/bin/hcGetDetails.cgi?hcBase=1830&cmd=hcRprt&disp=list" target="_blank" class="text-blue-600 underline hover:text-blue-800 font-medium ml-1">Click here to get one</a>
+          </p>
+        </div>
+        
+        <form id="health-check-form" action="{% url 'health_check_upload' selected_customer.id %}" method="post" enctype="multipart/form-data" class="space-y-6">
+          {% csrf_token %}
+          
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">Upload TEC Health Check Report</label>
+            <input type="file" id="tec-report" name="tec_report_file" accept=".xlsx" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="tec-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <div>
+            <label class="block mb-3 text-sm font-semibold text-gray-700">Upload Remote Inventory CSV File</label>
+            <input type="file" id="inventory-csv" name="inventory_csv" accept=".csv" required class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div id="csv-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+          </div>
+          
+          <button type="submit" id="upload-submit-btn" class="upload-btn w-full py-4 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3">
+            <span class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span class="text-lg">🔄 Start Health Check Processing (2 Files)</span>
+          </button>
+        </form>
+        
+      {% endif %}
+      <div id="tec-stdout" class="mt-4 hidden bg-gray-100 text-sm p-4 rounded-lg text-gray-800 whitespace-pre-wrap"></div>
+      <div id="tec-stderr" class="mt-2 hidden bg-red-100 text-sm p-4 rounded-lg text-red-700 whitespace-pre-wrap"></div>
+    </div>
+
+    <!--Step 2: Host Upload -->
+    <div id="step2-host" class="fade-in hidden step-card p-8 rounded-2xl">
+      <div class="flex items-center mb-6">
+        <div class="step-number mr-4">2</div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Upload Host File</h2>
+          <p class="text-gray-600 text-sm">Upload your host configuration file to create tracker</p>
+        </div>
+      </div>
+      <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+        <p class="text-sm text-yellow-800">
+          <strong>📋 Important:</strong> File name must contain customer name "<strong>{{ selected_customer.name }}</strong>" to be accepted.
+        </p>
+      </div>
+      <form id="host-form" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+        <div>
+          <label class="block mb-3 text-sm font-semibold text-gray-700">Upload Current Host File</label>
+          <input type="file" id="host-file" accept=".xlsx" class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <div id="host-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+        </div>
+        <button type="submit" id="host-submit-btn" class="upload-btn w-full py-4 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3">
+          <span class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span class="text-lg">Submit Host File</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Step 3: Download -->
+    <div id="step3" class="fade-in hidden step-card p-8 rounded-2xl border-2 border-green-200">
+      <div class="flex items-center mb-6">
+        <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-4">
+          <span class="text-white font-bold text-xl">✓</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Download Tracker File</h2>
+          <p class="text-gray-600 text-sm">Your tracker file has been generated successfully</p>
+        </div>
+      </div>
+      <div class="text-center bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-6 rounded-xl mb-6">
+        <p class="text-green-700 font-semibold text-lg">Tracker file generated successfully!</p>
+      </div>
+      <div class="text-center">
+        <a id="download-link" href="#" class="success-gradient inline-block px-8 py-4 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold text-lg">
+          📥 Download Tracker File
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const step1 = document.getElementById('step1');
+    const step2Host = document.getElementById('step2-host');
+    const step3 = document.getElementById('step3');
+    const downloadLink = document.getElementById('download-link');
+    const trackerMsg = document.getElementById('tracker-message');
+
+    function showMessage(msg, bgColor) {
+      trackerMsg.className = `p-4 rounded-xl text-center text-white font-medium mb-4 ${bgColor}`;
+      trackerMsg.textContent = msg;
+      trackerMsg.classList.remove('hidden');
+      setTimeout(() => trackerMsg.classList.add('hidden'), 5000);
+    }
+
+    // Handle form submission for health check upload (using existing views)
+    document.getElementById('health-check-form').addEventListener('submit', function(e) {
+      const btn = document.getElementById('upload-submit-btn');
+      const spinner = btn.querySelector('.spinner');
+      
+      // Show loading state
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+      
+      showMessage('📤 Uploading files for processing...', 'bg-blue-600');
+      
+      // Let the form submit normally to the existing view
+      // The view will handle the processing and redirect appropriately
+    });
+    
+    // Check for URL parameters to show processing or results
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+    if (sessionId) {
+      // If we have a session ID, we might be returning from processing
+      showMessage('✅ Processing complete! Check the results.', 'bg-green-600');
+    }
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    // Real-time filename validation
+    async function validateFilename(filename, validationElementId) {
+      if (!filename) {
+        document.getElementById(validationElementId).classList.add('hidden');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`{% url 'validate_filename' %}?filename=${encodeURIComponent(filename)}`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          }
+        });
+        
+        const data = await response.json();
+        const validationEl = document.getElementById(validationElementId);
+        
+        if (data.status === 'success') {
+          validationEl.classList.remove('hidden');
+          if (data.is_valid) {
+            validationEl.className = 'mb-4 p-3 rounded-lg text-sm bg-green-100 border border-green-200 text-green-700';
+            validationEl.innerHTML = '✅ ' + data.message;
+          } else {
+            validationEl.className = 'mb-4 p-3 rounded-lg text-sm bg-red-100 border border-red-200 text-red-700';
+            validationEl.innerHTML = '❌ ' + data.message;
+          }
+        }
+      } catch (err) {
+        console.error('Error validating filename:', err);
+      }
+    }
+    
+    // Add event listeners for file inputs
+    document.getElementById('tec-report').addEventListener('change', function(e) {
+      const filename = e.target.files[0]?.name || '';
+      validateFilename(filename, 'tec-filename-validation');
+    });
+    
+    const hostFileInput = document.getElementById('host-file');
+    if (hostFileInput) {
+      hostFileInput.addEventListener('change', function(e) {
+        const filename = e.target.files[0]?.name || '';
+        validateFilename(filename, 'host-filename-validation');
+      });
+    }
+    
+    const csvInput = document.getElementById('inventory-csv');
+    if (csvInput) {
+      csvInput.addEventListener('change', function(e) {
+        const filename = e.target.files[0]?.name || '';
+        validateFilename(filename, 'csv-filename-validation');
+      });
+    }
+    
+    // Add validation for new network files
+    const hcTrackerInput = document.getElementById('hc-tracker');
+    if (hcTrackerInput) {
+      hcTrackerInput.addEventListener('change', function(e) {
+        const filename = e.target.files[0]?.name || '';
+        validateFilename(filename, 'hc-tracker-validation');
+      });
+    }
+    
+    const globalIgnoreInput = document.getElementById('global-ignore');
+    if (globalIgnoreInput) {
+      globalIgnoreInput.addEventListener('change', function(e) {
+        const filename = e.target.files[0]?.name || '';
+        validateFilename(filename, 'global-ignore-validation');
+      });
+    }
+    
+    const selectiveIgnoreInput = document.getElementById('selective-ignore');
+    if (selectiveIgnoreInput) {
+      selectiveIgnoreInput.addEventListener('change', function(e) {
+        const filename = e.target.files[0]?.name || '';
+        validateFilename(filename, 'selective-ignore-validation');
+      });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{
+  "customer_name": "timedotcom",
+  "inventory_settings": {
+    "auto_refresh": true,
+    "refresh_interval_minutes": 30,
+    "display_columns": [
+      "HC_ID",
+      "Node_IP", 
+      "Location",
+      "User_Label",
+      "Shelf_Type",
+      "Mnemonic",
+      "Board_Count"
+    ],
+    "filters": {
+      "enable_shelf_filter": true,
+      "enable_location_filter": true,
+      "enable_date_filter": true
+    }
+  },
+  "data_sources": {
+    "primary_csv": "TIMEDOTCOM_Inventory.csv",
+    "backup_location": "../../../Script/customer_files/timedotcom/inventory_files/",
+    "last_updated": "2025-08-11"
+  },
+  "ui_preferences": {
+    "theme": "default",
+    "page_size": 50,
+    "export_formats": ["csv", "xlsx", "pdf"]
+  }
+}

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Table Update Test</title>
+    <script>
+        // Quick test functions - paste these in browser console on dashboard
+        
+        function testOPT_NC() {
+            console.log('🧪 Testing OPT_NC table update...');
+            if (window.incrementOPT_NC) {
+                incrementOPT_NC();
+                console.log('✅ Called incrementOPT_NC()');
+            } else {
+                console.log('❌ incrementOPT_NC function not found');
+            }
+        }
+        
+        function testBSNL_East() {
+            console.log('🧪 Testing BSNL East DWDM table update...');
+            if (window.incrementBSNL_East_DWDM) {
+                incrementBSNL_East_DWDM();
+                console.log('✅ Called incrementBSNL_East_DWDM()');
+            } else {
+                console.log('❌ incrementBSNL_East_DWDM function not found');
+            }
+        }
+        
+        function testAllFunctions() {
+            console.log('🧪 Testing all table update functions...');
+            
+            const functions = [
+                'incrementOPT_NC',
+                'incrementBSNL_East_DWDM', 
+                'incrementBSNL_North_DWDM',
+                'incrementBSNL_West_DWDM',
+                'incrementMoratelindo'
+            ];
+            
+            functions.forEach(funcName => {
+                if (window[funcName]) {
+                    console.log(`✅ ${funcName} - Available`);
+                } else {
+                    console.log(`❌ ${funcName} - Missing`);
+                }
+            });
+            
+            console.log('\n📋 To test manually:');
+            console.log('testOPT_NC() - Test OPT_NC increment');
+            console.log('testBSNL_East() - Test BSNL East DWDM increment');
+        }
+    </script>
+</head>
+<body>
+    <h1>Quick Table Update Test Functions</h1>
+    <p>Open browser console on dashboard and use these functions:</p>
+    
+    <h2>Test Functions:</h2>
+    <ul>
+        <li><code>testOPT_NC()</code> - Test OPT_NC table update</li>
+        <li><code>testBSNL_East()</code> - Test BSNL East DWDM table update</li>
+        <li><code>testAllFunctions()</code> - Check all functions are available</li>
+    </ul>
+    
+    <h2>Manual Increment Functions:</h2>
+    <ul>
+        <li><code>incrementOPT_NC()</code> - Increment OPT_NC runs</li>
+        <li><code>incrementBSNL_East_DWDM()</code> - Increment BSNL East DWDM runs</li>
+        <li><code>incrementBSNL_North_DWDM()</code> - Increment BSNL North DWDM runs</li>
+        <li><code>incrementBSNL_West_DWDM()</code> - Increment BSNL West DWDM runs</li>
+        <li><code>incrementMoratelindo()</code> - Increment Moratelindo PSS24 runs</li>
+    </ul>
+    
+    <h2>Expected Behavior:</h2>
+    <ol>
+        <li>Function fetches fresh data from database</li>
+        <li>Updates dashboard cached data</li>
+        <li>Refreshes table display</li>
+        <li>Manually updates specific table cell</li>
+        <li>Cell gets green highlight for 2 seconds</li>
+        <li>Total runs column shows updated value</li>
+    </ol>
+    
+    <h2>Console Messages to Watch For:</h2>
+    <pre>
+🔧 Loading table total runs real-time update fix...
+🚀 Incrementing OPT_NC runs
+🔄 Updating table total runs for OPT_NC - OPT_NC
+📊 Got fresh database data, updating table...
+📊 OPT_NC - OPT_NC: 20 runs (from database)
+📋 Updating customer grid...
+📊 Updating statistics...
+🔧 Manually updating table cell for OPT_NC - OPT_NC
+🔄 Updating cell from 19 to 20
+✅ Table updated: OPT_NC now shows 20 runs
+    </pre>
+</body>
+</html>

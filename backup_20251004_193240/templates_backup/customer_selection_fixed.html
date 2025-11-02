@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Customer - 1830 PSS Health Checking History Tracking Tool{% endblock %}
+
+{% block extra_head %}
+    <style>
+        body {
+            background: linear-gradient(to right, #dbeafe, #f0f9ff);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex" style="min-height: calc(100vh - 75px);">
+    <!-- Main Content Area -->
+    <div class="flex-1 flex items-start justify-center p-6 pt-12">
+<div class="w-full max-w-lg bg-white p-8 rounded-xl shadow-md space-y-6">
+    <div class="text-center">
+        <h1 class="text-3xl font-bold text-blue-800">Network Management</h1>
+        <p class="text-blue-600">Select an existing network or manage your network list.</p>
+    </div>
+    
+    {% if customer_form.errors %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {% for field, errors in customer_form.errors.items %}
+                {% for error in errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-blue-800">Network Selection</label>
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-blue-800">Customer</label>
+                {{ selection_form.customer }}
+            </div>
+            <div id="network-selection-container" class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-blue-800">Network</label>
+                <select id="network-selection" name="network" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-1 focus:ring-blue-400">
+                    <option value="">Select a customer first...</option>
+                </select>
+            </div>
+            <button type="submit" name="select_customer" onclick="return validateForm()" class="w-full bg-blue-700 text-white py-2 rounded-lg font-medium hover:bg-blue-800 transition">
+               Proceed
+            </button>
+        </div>
+    </form>
+    
+    <!-- Add Customer Button -->
+    <div class="mb-4">
+        <button type="button" onclick="showAddCustomerForm()" class="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Add New Network</span>
+        </button>
+    </div>
+    
+    <!-- Simple Remove Customer Section -->
+    <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h3 class="text-sm font-semibold text-red-700 mb-3">🗑️ Remove Customer</h3>
+        
+        <!-- Direct Customer Selection for Removal -->
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Select Customer to Remove</label>
+            {{ selection_form.remove_customer }}
+        </div>
+        
+        <!-- Remove Button -->
+        <div class="flex justify-end">
+            <button type="button" onclick="removeSelectedCustomer()" class="px-4 py-2 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition disabled:bg-gray-400" disabled id="remove-btn">
+                Remove Customer
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal for Add Network Form -->
+<div id="addCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-4 w-full max-w-sm mx-4 shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-blue-800">Add New Network</h2>
+            <button onclick="hideAddCustomerForm()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        
+        <form id="addCustomerForm" method="post" action="">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <!-- Customer/Organization Name Field -->
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">Customer/Organization Name</label>
+                    <input type="text" name="customer_name" class="w-full p-3 rounded-lg border border-blue-200 bg-blue-50" placeholder="Enter customer name (e.g., BSNL, Airtel, Jio)" required>
+                </div>
+                
+                <!-- Network Name Field -->
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">Network Name <span class="text-gray-500">(Optional)</span></label>
+                    <input type="text" name="network_name" class="w-full p-3 rounded-lg border border-blue-200 bg-blue-50" placeholder="Enter network name (e.g., East, West, North) - Leave empty for base customer">
+                </div>
+                
+                <!-- Hidden field to set default network type -->
+                <input type="hidden" name="network_type" value="HealthCheck">
+                
+                <!-- Creation Date Field -->
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">Creation Date</label>
+                    <input type="text" id="creationDate" class="w-full p-3 rounded-lg border border-gray-200 bg-gray-100" readonly>
+                    <div class="text-xs text-gray-600 mt-1">
+                        <span class="inline-flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+                            </svg>
+                            Current date and time when network is created
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="hideAddCustomerForm()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition">
+                    Cancel
+                </button>
+                <button type="submit" name="add_customer_network" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition">
+                    Add Network
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Show Add Customer Modal
+function showAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.remove('hidden');
+    
+    // Set current date and time in the creation date field
+    const now = new Date();
+    const formattedDate = now.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata'
+    });
+    document.getElementById('creationDate').value = formattedDate;
+    
+    // Focus on customer name input
+    setTimeout(() => {
+        document.querySelector('#addCustomerModal input[name="customer_name"]').focus();
+    }, 100);
+}
+
+// Hide Add Customer Modal
+function hideAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.add('hidden');
+}
+
+// Close modal on outside click
+document.getElementById('addCustomerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideAddCustomerForm();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideAddCustomerForm();
+    }
+});
+
+// Simple customer removal functionality
+function handleRemovalCustomerSelection() {
+    const removeCustomerSelect = document.querySelector('select[name="remove_customer"]');
+    const removeBtn = document.getElementById('remove-btn');
+    
+    if (!removeCustomerSelect) return;
+    
+    removeCustomerSelect.addEventListener('change', function() {
+        const customerId = this.value;
+        
+        if (!customerId) {
+            removeBtn.disabled = true;
+            return;
+        }
+        
+        // Enable remove button when customer is selected
+        removeBtn.disabled = false;
+    });
+}
+
+// Simple function to remove selected customer
+function removeSelectedCustomer() {
+    const removeCustomerSelect = document.querySelector('select[name="remove_customer"]');
+    const customerId = removeCustomerSelect.value;
+    const customerName = removeCustomerSelect.options[removeCustomerSelect.selectedIndex].text;
+    
+    if (!customerId) {
+        alert('Please select a customer first.');
+        return;
+    }
+    
+    // Simple confirmation message
+    const confirmMessage = `Do you want to remove "${customerName}" customer?\n\n⚠️ This will remove the customer and all its networks.\n\nNote: Data will be saved in database but hidden from selection.`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // Prepare form data - remove entire customer with all networks
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('remove_customer', customerId);
+    formData.append('remove_networks', 'true'); // Remove all networks too
+    
+    // Show loading state
+    const removeBtn = document.getElementById('remove-btn');
+    const originalText = removeBtn.textContent;
+    removeBtn.textContent = 'Removing...';
+    removeBtn.disabled = true;
+    
+    // Send request
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('✅ ' + data.message);
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + data.message);
+            // Restore button state
+            removeBtn.textContent = originalText;
+            removeBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ An error occurred while removing customer.');
+        // Restore button state
+        removeBtn.textContent = originalText;
+        removeBtn.disabled = false;
+    });
+}
+
+// Simple customer selection and network loading
+function handleCustomerSelection() {
+    const customerSelect = document.querySelector('select[name="customer"]');
+    const networkContainer = document.getElementById('network-selection-container');
+    const networkSelect = document.getElementById('network-selection');
+    
+    if (!customerSelect) return;
+    
+    customerSelect.addEventListener('change', function() {
+        const customerId = this.value;
+        
+        if (!customerId) {
+            networkSelect.innerHTML = '<option value="">Select a customer first...</option>';
+            return;
+        }
+        
+        // Show loading
+        networkSelect.innerHTML = '<option value="">Loading networks...</option>';
+        networkContainer.style.display = 'block';
+        
+        // Fetch networks for the selected customer
+        fetch(`/get-customer-networks/${customerId}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const networks = data.networks;
+                networkSelect.innerHTML = '';
+                
+                if (networks.length === 0) {
+                    networkSelect.innerHTML = '<option value="">No networks available - Proceed anyway</option>';
+                } else if (networks.length === 1) {
+                    const network = networks[0];
+                    const option = document.createElement('option');
+                    option.value = network.id;
+                    option.textContent = network.display_name || network.network_name || 'Default';
+                    option.selected = true;
+                    networkSelect.appendChild(option);
+                } else {
+                    networkSelect.innerHTML = '<option value="">Select a network...</option>';
+                    networks.forEach((network) => {
+                        const option = document.createElement('option');
+                        option.value = network.id;
+                        option.textContent = network.display_name || network.network_name || 'Default';
+                        networkSelect.appendChild(option);
+                    });
+                }
+                networkContainer.style.display = 'block';
+            } else {
+                networkSelect.innerHTML = '<option value="">Error loading networks</option>';
+            }
+        })
+        .catch(error => {
+            networkSelect.innerHTML = '<option value="">Error loading networks</option>';
+        });
+    });
+}
+
+// Simple form validation
+function validateForm() {
+    const customerSelect = document.querySelector('select[name="customer"]');
+    const networkSelect = document.getElementById('network-selection');
+    
+    // Check if customer is selected
+    if (!customerSelect.value) {
+        alert('❌ Please select a customer first!');
+        customerSelect.focus();
+        return false;
+    }
+    
+    // Check network selection
+    const selectedText = networkSelect.options[networkSelect.selectedIndex]?.text || '';
+    
+    // Skip network validation if no networks available
+    if (selectedText.includes('No networks available') || 
+        selectedText.includes('Select a customer first') ||
+        selectedText.includes('Loading networks')) {
+        return true;
+    }
+    
+    // Check if network is selected when multiple options exist
+    if (networkSelect.options.length > 1 && (!networkSelect.value || selectedText.includes('Select a network'))) {
+        alert('❌ Please select a network from the dropdown!');
+        networkSelect.focus();
+        return false;
+    }
+    
+    return true;
+}
+
+// Initialize customer selection handling when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    handleCustomerSelection();
+    handleRemovalCustomerSelection();
+});
+</script>
+{% endblock %}

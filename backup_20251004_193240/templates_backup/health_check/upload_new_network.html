@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}New Network Setup - 1830PSS Health Check{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">New Network Setup</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-upload me-2"></i>Upload Files for {{ customer.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>New Network Setup:</strong> Please upload all {{ files_expected }} required files for initial network setup.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.hc_tracker_file.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>HC Tracker File (Excel)
+                        </label>
+                        {{ form.hc_tracker_file }}
+                        <div class="form-text">Upload the HC Issues Tracker Excel file</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.global_ignore_txt.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-text me-2"></i>Global Ignore List (TXT)
+                        </label>
+                        {{ form.global_ignore_txt }}
+                        <div class="form-text">Upload the global ignore list text file</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.selective_ignore_xlsx.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Selective Ignore List (Excel)
+                        </label>
+                        {{ form.selective_ignore_xlsx }}
+                        <div class="form-text">Upload the selective ignore list Excel file</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.tec_report_file.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark me-2"></i>TEC Report File
+                        </label>
+                        {{ form.tec_report_file }}
+                        <div class="form-text">Upload the TEC report file</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.inventory_csv.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-text me-2"></i>Inventory CSV File
+                        </label>
+                        {{ form.inventory_csv }}
+                        <div class="form-text">Upload the inventory CSV file</div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-2"></i>Start Processing
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Setup Requirements</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>HC Tracker File</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Global Ignore List</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Selective Ignore List</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>TEC Report</li>
+                    <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Inventory CSV</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Bootstrap form classes
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+        input.classList.add('form-control');
+    });
+});
+</script>
+{% endblock %}

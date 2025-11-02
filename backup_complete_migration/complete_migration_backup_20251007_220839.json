@@ -1,0 +1,22 @@
+{
+  "customers": [
+    {
+      "id": 669,
+      "name": "OPT_NC",
+      "network_name": "OPT_NC",
+      "network_type": "HealthCheck",
+      "setup_status": "NEW",
+      "created_at": "2025-10-07 16:36:13.000177+00:00",
+      "is_deleted": false,
+      "country": null,
+      "node_qty": 0,
+      "ne_type": null,
+      "gtac": null,
+      "monthly_runs": {},
+      "total_runs": 0
+    }
+  ],
+  "files": [],
+  "backup_timestamp": "2025-10-07 22:08:39.223128",
+  "migration_type": "complete_excel_migration"
+}

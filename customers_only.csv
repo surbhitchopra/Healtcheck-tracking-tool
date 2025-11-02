@@ -1,0 +1,7 @@
+name,network_name,country,node_qty,ne_type,gtac,network_type,setup_status,total_runs
+Tata,TTML,India,27,1678MCC,Classic,Excel Imported,READY,9
+Tata,TTSL_BackBone,India,40,1678MCC,Classic,Excel Imported,READY,8
+Tata,TTSL North,India,17,1678MCC,Classic,Excel Imported,READY,5
+Timedotcom,Malaysia Network,Malaysia,15,1830 PSS,PSS,Excel Imported,READY,5
+airtel,India Network,India,25,1830 PSS,Classic,Excel Imported,READY,12
+Barti,India Network,India,20,1830 PSS,Classic,Excel Imported,READY,6

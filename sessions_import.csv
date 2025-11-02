@@ -1,0 +1,5 @@
+customer,session_id,session_type,status,files_expected,files_received,progress_percentage,current_step
+1,tata-ttml-001,REGULAR_PROCESSING,COMPLETED,2,2,100,Processing completed
+2,tata-ttsl-001,REGULAR_PROCESSING,COMPLETED,2,2,100,Processing completed
+3,timedotcom-001,REGULAR_PROCESSING,COMPLETED,2,2,100,Processing completed
+4,airtel-001,REGULAR_PROCESSING,COMPLETED,2,2,100,Processing completed

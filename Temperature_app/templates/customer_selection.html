@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Customer - Health Check  Automation{% endblock %}
+
+{% block extra_head %}
+    <style>
+        body {
+            background: linear-gradient(to right, #dbeafe, #f0f9ff);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen">
+<div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md space-y-4">
+    <div class="text-center">
+        <h1 class="text-3xl font-bold text-blue-800">Customer Management</h1>
+        <p class="text-blue-600">Select an existing customer or manage your customer list.</p>
+    </div>
+    
+    {% if customer_form.errors %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {% for field, errors in customer_form.errors.items %}
+                {% for error in errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-blue-800">Customer Selection</label>
+            {{ selection_form.customer }}
+            <button type="submit" name="select_customer" class="w-full mt-2 bg-blue-700 text-white py-2 rounded-lg font-medium hover:bg-blue-800 transition">
+               Proceed
+            </button>
+        </div>
+    </form>
+    
+    <!-- Add Customer Button -->
+    <div class="mb-4">
+        <button type="button" onclick="showAddCustomerForm()" class="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Add New Customer</span>
+        </button>
+    </div>
+    
+    <!-- Compact Remove Customer Section -->
+    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+        <div class="flex items-center space-x-2">
+            <select id="remove-customer-select" class="flex-1 p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400">
+                <option value="">Remove customer...</option>
+                {% for customer in selection_form.customer.field.queryset %}
+                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" onclick="removeCustomer()" class="px-3 py-2 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition">
+                Remove
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal for Add Customer Form -->
+<div id="addCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-blue-800">Add New Customer</h2>
+            <button onclick="hideAddCustomerForm()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        
+        <form id="addCustomerForm" method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">{{ customer_form.name.label }}</label>
+                    {{ customer_form.name }}
+                    {% if customer_form.name.errors %}
+                        <div class="text-red-600 text-sm mt-1">
+                            {{ customer_form.name.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">{{ customer_form.default_threshold.label }}</label>
+                    {{ customer_form.default_threshold }}
+                    <div class="text-xs text-gray-600 mt-1">Enter temperature threshold between 20-50°C (default: 30°C)</div>
+                    {% if customer_form.default_threshold.errors %}
+                        <div class="text-red-600 text-sm mt-1">
+                            {{ customer_form.default_threshold.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">{{ customer_form.last_tracker_generated.label }}</label>
+                    {{ customer_form.last_tracker_generated }}
+                    <div class="text-xs text-gray-600 mt-1">
+                        <span class="inline-flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                            Informational only - will be populated once customer has generated trackers
+                        </span>
+                    </div>
+                    {% if customer_form.last_tracker_generated.errors %}
+                        <div class="text-red-600 text-sm mt-1">
+                            {{ customer_form.last_tracker_generated.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="hideAddCustomerForm()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition">
+                    Cancel
+                </button>
+                <button type="submit" name="add_customer" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition">
+                    Add Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Show Add Customer Modal
+function showAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.remove('hidden');
+    // Clear the last tracker field for new customer
+    const trackerField = document.querySelector('#addCustomerModal input[name="last_tracker_generated"]');
+    trackerField.value = '';
+    trackerField.placeholder = 'Will be populated after customer creation';
+    // Focus on first input
+    setTimeout(() => {
+        document.querySelector('#addCustomerModal input[name="name"]').focus();
+    }, 100);
+}
+
+// Hide Add Customer Modal
+function hideAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.add('hidden');
+}
+
+// Close modal on outside click
+document.getElementById('addCustomerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideAddCustomerForm();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideAddCustomerForm();
+    }
+});
+
+function removeCustomer() {
+    const select = document.getElementById('remove-customer-select');
+    const customerId = select.value;
+    const customerName = select.options[select.selectedIndex].text;
+    
+    if (!customerId) {
+        alert('Please select a customer to remove.');
+        return;
+    }
+    
+    if (!confirm(`Remove customer "${customerName}"?\n\nNote: Customer data will be saved in database but hidden from selection.`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('remove_customer', customerId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while removing the customer.');
+    });
+}
+</script>
+{% endblock %}

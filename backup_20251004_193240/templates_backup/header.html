@@ -1,0 +1,219 @@
+{% load static %}
+
+<nav class="nav">
+  <a href="{% url 'dashboard' %}" class="nav-logo-link">
+    <div class="logo-placeholder">
+      <img src="{% static 'assets/images/logoNokiaBrand.png'%}" alt="Your Company" class="logo-image">
+    </div>
+  </a>
+
+  <h2>{% block header %}1830 PSS Health Checking History Tracking Tool{% endblock %}</h2>
+
+  <div class="header-right">
+    <!-- Dashboard Button - Only visible on customer selection page -->
+    {% if request.resolver_match.url_name == 'customer_selection' %}
+      <a href="{% url 'customer_dashboard' %}" class="dashboard-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+    {% endif %}
+    
+    <p>Welcome, {{ request.user.username }}</p>
+    {% if selected_customer %}
+      <span class="customer-info">| Customer: <strong>{{ selected_customer.display_name }}</strong></span>
+    {% endif %}
+    
+    <form action="{% url 'logout' %}" method="POST">
+      {% csrf_token %}
+      <button type="submit">
+        <span class="logout-text">Logout</span>
+      </button>
+    </form>
+  </div>
+</nav>
+
+<style>
+   @font-face {
+     font-family: nokiaUlt;
+     src: url('{% static "assets/fonts/NokiaPureHeadline_Lt.woff" %}');
+     font-display: swap;
+    }
+    body {
+      background: #ffffff;
+      min-height: 100vh;
+      font-family: nokiaUlt;
+    }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+    background-color: #005aff;
+    color: white;
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.75em;
+    z-index: 1000;
+  }
+
+  .logo-placeholder {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    z-index: 1001;
+  }
+
+  .nav-logo-link {
+    position: relative;
+    z-index: 1002;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .nav-logo-link:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+  }
+
+  .logo-image {
+    height: 32px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    pointer-events: auto;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+  }
+
+  .nav img:not(.logo-image) {
+    height: 24px;
+    filter: invert(100%) sepia(100%) saturate(1%) hue-rotate(306deg)
+      brightness(108%) contrast(101%);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+  }
+
+  .dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    margin-left: 12px;
+    margin-right: 12px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+  }
+
+  .dashboard-btn:hover {
+    background: linear-gradient(135deg, #004499 0%, #003366 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+    color: white;
+    text-decoration: none;
+  }
+
+  .dashboard-btn svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.9;
+  }
+
+  .customer-info {
+    font-size: 14px;
+    color: #e0e7ff;
+    margin-left: 8px;
+  }
+
+  .nav form {
+    margin: 0;
+    margin-left: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav form button {
+    background-color: transparent;
+    border: none;
+    padding: 8px 12px;
+    margin: 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .logout-text {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .nav form button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .nav form button:hover img {
+    filter: none;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.35;
+    letter-spacing: 0.03em;
+    margin: 0;
+    font-weight: 600;
+  }
+
+  main {
+    margin: 75px 10px 24px 10px;
+    padding: 0.5em 1em;
+  }
+
+  @media (max-width: 768px) {
+    .nav {
+      padding: 0.5em;
+    }
+    
+    .nav h2 {
+      font-size: 1rem;
+    }
+    
+    .nav p {
+      font-size: 14px;
+    }
+    
+    .customer-info {
+      display: none;
+    }
+    
+    .nav > div {
+      gap: 0.25em;
+    }
+  }
+</style>

@@ -1,0 +1,790 @@
+{% extends 'base.html' %}
+
+{% block title %}Select Customer & Network - Health Check Automation{% endblock %}
+
+{% block extra_head %}
+    <style>
+        body {
+            background: linear-gradient(to right, #dbeafe, #f0f9ff);
+        }
+        .network-selection {
+            display: none;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        .network-selection.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .customer-info {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #92400e;
+        }
+        
+        /* Ensure proper containment */
+        .main-container {
+            width: 100vw;
+            overflow-x: hidden;
+        }
+        
+        .content-box {
+            max-width: calc(100% - 2rem);
+        }
+        
+        /* Professional enhanced scrollbar styling */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #cbd5e1;
+        }
+        
+        /* Professional gradient backgrounds */
+        .sidebar-gradient {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        
+        .customer-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .customer-card:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+        }
+        
+        /* Professional status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status-active {
+            background-color: #10b981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+        
+        .status-inactive {
+            background-color: #6b7280;
+            box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.2);
+        }
+        
+        /* Professional typography */
+        .professional-title {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+        
+        .professional-subtitle {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        
+        /* Better text wrapping */
+        .customer-name-text {
+            word-break: break-word;
+            hyphens: auto;
+            line-height: 1.3;
+        }
+        
+        /* Improved network list styling */
+        .network-item {
+            word-break: break-word;
+            line-height: 1.2;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex min-h-screen bg-gradient-to-r from-blue-50 to-indigo-50">
+    <!-- Left Sidebar - Customer Statistics -->
+    <!-- <div class="w-96 bg-white shadow-lg border-r border-blue-200 p-3 flex flex-col h-screen flex-shrink-0">
+        <div class="text-center mb-2">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold text-blue-800">🔧 Tool Overview</h2>
+                <button onclick="openDashboard()" class="bg-gradient-to-r from-purple-500 to-blue-600 text-white px-3 py-1 rounded-lg text-xs font-medium hover:from-purple-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105" title="Open Professional Dashboard">
+                    📊 Dashboard
+                </button>
+            </div>
+        </div>
+        
+        {% if customer_statistics %}
+        <div class="bg-gray-50 rounded-lg p-2 border border-gray-200 mb-2 flex-shrink-0">
+            <div class="flex justify-center items-center space-x-4 text-sm">
+                <div class="text-center">
+                    <span class="text-lg font-bold text-blue-800">{{ customer_statistics.total_registered_customers }}</span>
+                    <div class="text-xs text-blue-600">Customers</div>
+                </div>
+                {% if customer_statistics.total_networks > 0 %}
+                <div class="text-center">
+                    <span class="text-lg font-bold text-green-800">{{ customer_statistics.total_networks }}</span>
+                    <div class="text-xs text-green-600">Networks</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 flex-1 min-h-0 overflow-hidden">
+            <h3 class="font-bold text-gray-800 mb-3 text-center text-sm">📋 Customer Details</h3>
+            <div class="space-y-2 h-full overflow-y-auto custom-scrollbar" style="max-height: calc(100vh - 200px);">
+                {% for customer_name, networks in customers_with_networks.items %}
+                    <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-100 min-w-0" data-customer-name="{{ customer_name }}" data-customer-id="{{ networks.0.id }}">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="font-medium text-gray-800 text-sm break-words min-w-0 flex-1 mr-2" title="{{ customer_name }}">{{ customer_name }}</div>
+                            <div class="flex space-x-1 flex-shrink-0">
+                                {% with network_count=networks|length %}
+                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded whitespace-nowrap" title="Debug: {{ customer_name }} has {{ network_count }} networks">
+                                    {{ network_count }} net{{ network_count|pluralize:"s" }}
+                                </span>
+                                {% if network_count == 0 %}
+                                {% else %}
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-gray-600 space-y-1">
+                            {% if customer_statistics.per_customer_stats %}
+                                {% for stat_customer_name, stats in customer_statistics.per_customer_stats.items %}
+                                    {% if stat_customer_name == customer_name %}
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs">🏃 Total Runs:</span>
+                                        <span class="font-medium text-blue-600 text-xs">{{ stats.runs|default:"0" }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs">📈 Trackers:</span>
+                                        <span class="font-medium text-green-600 text-xs">{{ stats.trackers|default:"0" }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs">📅 This Month:</span>
+                                        <span class="font-medium text-orange-600 text-xs" id="customer-month-{{ forloop.counter }}">--</span>
+                                    </div>
+                                    {% if stats.last_run_date %}
+                                    <div class="flex justify-between items-start">
+                                        <span class="text-xs">🕒 Last:</span>
+                                        <div class="text-right flex-1 min-w-0">
+                                            <div class="font-medium text-purple-600 text-xs truncate">{{ stats.last_run_date|date:"d M Y" }}</div>
+                                            <div class="text-xs text-purple-500 leading-tight">{{ stats.last_run_date|date:"g:i A" }}</div>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs">🕒 Last:</span>
+                                        <span class="font-medium text-gray-400 text-xs">Never</span>
+                                    </div>
+                                    {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs">🏃 Runs:</span>
+                                <span class="font-medium text-gray-400 text-xs">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs">📈 Trackers:</span>
+                                <span class="font-medium text-gray-400 text-xs">0</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs">🕒 Last:</span>
+                                <span class="font-medium text-gray-400 text-xs">Never</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if networks|length > 1 %}
+                        <div class="mt-2 pt-2 border-t border-gray-100">
+                            <div class="text-xs text-gray-500 mb-2 font-medium">Networks:</div>
+                            <div id="networks-{{ customer_name|slugify }}" class="networks-container space-y-1">
+                                {% for network in networks|slice:":3" %}
+                                    <div class="text-xs text-blue-600 break-words" title="{{ network.display_name }}">• {{ network.display_name }}</div>
+                                {% endfor %}
+                                {% if networks|length > 3 %}
+                                    <div class="text-xs text-gray-400 italic cursor-pointer hover:text-blue-500 transition-colors mt-1" onclick="toggleNetworks('{{ customer_name|slugify }}')">... +{{ networks|length|add:"-3" }} more (click to expand)</div>
+                                    <div id="hidden-networks-{{ customer_name|slugify }}" class="hidden-networks space-y-1" style="display: none;">
+                                        {% for network in networks|slice:"3:" %}
+                                            <div class="text-xs text-blue-600 break-words" title="{{ network.display_name }}">• {{ network.display_name }}</div>
+                                        {% endfor %}
+                                        <div class="text-xs text-gray-400 italic cursor-pointer hover:text-blue-500 transition-colors mt-1" onclick="toggleNetworks('{{ customer_name|slugify }}')">... show less</div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <div class="text-center text-gray-500 py-4">
+                        <div class="text-sm">No customers registered yet</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        
+        {% else %}
+        <div class="text-center text-gray-500">
+            <div class="text-sm">Loading statistics...</div>
+        </div>
+        {% endif %}
+    </div> -->
+    
+    <!-- Main Content Area -->
+    <div class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-lg bg-white p-6 rounded-xl shadow-md space-y-4">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-blue-800">Customer & Network Selection</h1>
+                <p class="text-blue-600">Select customer and network for Health Check processing</p>
+            </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="bg-{{ message.tags }}-100 border border-{{ message.tags }}-400 text-{{ message.tags }}-700 px-4 py-3 rounded">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form id="customerNetworkForm" method="post">
+        {% csrf_token %}
+        
+        <!-- Hidden field to send customer name to backend -->
+        <input type="hidden" name="customer_name" id="customer-name-hidden" value="">
+        
+        <!-- Customer Selection -->
+        <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-blue-800">Select Customer</label>
+            {{ selection_form.customer }}
+        </div>
+        
+        <!-- Network Selection (Always Visible) -->
+        <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-blue-800">Select Network</label>
+            <select id="network-select" name="network_id" class="w-full p-3 rounded-lg border border-blue-200 bg-blue-50" required>
+                <option value="">First select a customer...</option>
+            </select>
+        </div>
+        
+        <!-- Proceed Button -->
+        <div class="mb-4">
+        <button type="submit" name="select_customer_network" class="w-full mt-4 bg-blue-700 text-white py-3 rounded-lg font-medium hover:bg-blue-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed" id="proceed-btn" disabled>
+               🚀 Proceed to Health Check
+            </button>
+        </div>
+    </form>
+    
+    <!-- Add Customer/Network Button -->
+    <div class="mb-4">
+        <button type="button" onclick="showAddCustomerForm()" class="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-2">
+            <span class="text-lg">➕</span>
+            <span>Add New Customer/Network</span>
+        </button>
+    </div>
+    
+    <!-- Remove Customer/Network Section -->
+    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+        <div class="space-y-3">
+            <!-- Customer Selection for Removal -->
+            <div class="flex items-center space-x-2">
+                <select id="remove-customer-select" class="flex-1 p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-400">
+                    <option value="">Select customer to remove...</option>
+                    {% for customer_name, networks in customers_with_networks.items %}
+                        <option value="{{ customer_name }}" data-network-count="{{ networks|length }}">{{ customer_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Network Selection for Removal (Dynamic) -->
+            <div id="remove-network-selection" class="network-selection" style="display: none; background: #fee2e2; border: 2px solid #fca5a5;">
+                <div class="customer-info" style="background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626;" id="remove-customer-info">
+                    <span id="remove-customer-name-display"></span> has multiple networks. Select which network to remove:
+                </div>
+                <label class="block mb-2 text-sm font-medium text-red-700">Select Network to Remove</label>
+                <select id="remove-network-select" class="w-full p-3 rounded-lg border border-red-300 bg-red-50">
+                    <option value="">Choose a network to remove...</option>
+                </select>
+            </div>
+            
+            <!-- Remove Button -->
+            <div class="flex justify-end">
+                <button type="button" onclick="removeCustomerOrNetwork()" class="px-4 py-2 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition" id="remove-btn" disabled>
+                    🗑️ Remove
+                </button>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Add Customer/Network Form -->
+<div id="addCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-blue-800">Add New Customer/Network</h2>
+            <button onclick="hideAddCustomerForm()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        
+        <form id="addCustomerForm" method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">Customer/Organization Name</label>
+                    <input type="text" name="customer_name" class="w-full p-3 rounded-lg border border-blue-200 bg-blue-50" placeholder="e.g., BSNL" required>
+                    <div class="text-xs text-gray-600 mt-1">Organization or customer name</div>
+                </div>
+                
+                <div>
+                    <label class="block mb-2 text-sm font-medium text-blue-800">Network Name <span class="text-gray-500">(Optional)</span></label>
+                    <input type="text" name="network_name" class="w-full p-3 rounded-lg border border-blue-200 bg-blue-50" placeholder="e.g., East, West, North, Central - Leave blank for default">
+                    <div class="text-xs text-gray-600 mt-1">
+                        <div>• Leave blank to create a simple customer without network divisions</div>
+                        <div>• Add network name if customer has multiple regions/networks</div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="hideAddCustomerForm()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-400 transition">
+                    Cancel
+                </button>
+                <button type="submit" name="add_customer_network" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition">
+                    Add Customer/Network
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+function loadCustomerMonthlyStats() {
+    // Load current month stats for each customer
+    const customerCards = document.querySelectorAll('[data-customer-id]');
+    
+    customerCards.forEach((customerCard, index) => {
+        const customerId = customerCard.dataset.customerId;
+        const monthElement = customerCard.querySelector('[id^="customer-month-"]');
+        
+        if (monthElement && customerId) {
+            // Fetch actual stats for this customer
+            fetch(`/api/customer-run-stats/${customerId}/`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    monthElement.textContent = data.current_month_runs || 0;
+                } else {
+                    monthElement.textContent = '0';
+                }
+            })
+            .catch(error => {
+                console.log('Error loading customer stats for customer ID', customerId, ':', error);
+                monthElement.textContent = '0';
+            });
+        }
+    });
+}
+
+// Initialize customer stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCustomerMonthlyStats();
+});
+
+// Customer selection logic - try multiple possible selectors
+const customerSelect = document.querySelector('#id_customer') || 
+                      document.querySelector('#customer-select') || 
+                      document.querySelector('select[name="customer"]');
+const networkSelect = document.getElementById('network-select');
+const proceedBtn = document.getElementById('proceed-btn');
+
+console.log('🔍 Customer select element found:', customerSelect ? customerSelect.id || customerSelect.name || 'unnamed' : 'NOT FOUND');
+if (customerSelect) {
+    console.log('✅ Customer select element attributes:', {
+        id: customerSelect.id,
+        name: customerSelect.name,
+        className: customerSelect.className
+    });
+    customerSelect.addEventListener('change', function() {
+        const customerName = this.value;  // Now this is the customer name, not ID
+        
+        console.log('🎯 Customer selected:', customerName);
+        
+        if (!customerName) {
+            // Clear network dropdown and hidden field
+            networkSelect.innerHTML = '<option value="">First select a customer...</option>';
+            document.getElementById('customer-name-hidden').value = '';
+            proceedBtn.disabled = true;
+            return;
+        }
+        
+        // Update the hidden customer_name field for form submission
+        document.getElementById('customer-name-hidden').value = customerName;
+        
+        // Load networks for the selected customer name
+        console.log('🌐 Loading networks for customer name:', customerName);
+        loadNetworksForCustomer(customerName);
+    });
+} else {
+    console.error('❌ Customer select element not found! Expected #customer-select');
+}
+
+networkSelect.addEventListener('change', function() {
+    const isSelected = this.value && this.value !== '';
+    proceedBtn.disabled = !isSelected;
+    console.log('🎣 Network selection changed:', this.value, 'Proceed enabled:', isSelected);
+});
+
+function showNetworkSelection() {
+    networkSelection.classList.add('show');
+}
+
+function hideNetworkSelection() {
+    networkSelection.classList.remove('show');
+}
+
+function loadNetworksForCustomer(customerName) {
+    console.log('🌐 Loading networks for customer name:', customerName);
+    
+    // Clear existing options
+    networkSelect.innerHTML = '<option value="">Loading networks...</option>';
+    proceedBtn.disabled = true;
+    
+    // Use the API endpoint that takes customer name
+    fetch(`/api/networks/${encodeURIComponent(customerName)}/`)
+        .then(response => {
+            console.log('📡 Network API response:', response.status, response.statusText);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📦 Network data received:', data);
+            networkSelect.innerHTML = '<option value="">Choose a network...</option>';
+            
+            if (data.status === 'success' && data.networks && data.networks.length > 0) {
+                console.log(`✅ Found ${data.networks.length} networks for ${customerName}`);
+                
+                // Always populate the network dropdown
+                data.networks.forEach(network => {
+                    const option = document.createElement('option');
+                    option.value = network.id;
+                    option.textContent = network.display_name || network.network_name || 'Default Network';
+                    networkSelect.appendChild(option);
+                    console.log(`📋 Added network: ${network.display_name || network.network_name || 'Default'} (ID: ${network.id})`);
+                });
+                
+                // Enable proceed button only when network is selected
+                proceedBtn.disabled = true;
+            } else {
+                // No networks found: show message and allow proceeding
+                console.warn('⚠️ No networks found for customer:', customerName);
+                networkSelect.innerHTML = '<option value="no_networks">No networks available for this customer</option>';
+                // Allow proceeding even without networks
+                proceedBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('💥 Network loading error:', error);
+            networkSelect.innerHTML = `<option value="">Error loading networks: ${error.message}</option>`;
+            proceedBtn.disabled = true;
+        });
+};
+
+// Network expansion toggle function
+function toggleNetworks(customerSlug) {
+    const hiddenNetworks = document.getElementById(`hidden-networks-${customerSlug}`);
+    const expandText = document.querySelector(`[onclick="toggleNetworks('${customerSlug}')"]`);
+    
+    if (hiddenNetworks.style.display === 'none') {
+        // Show hidden networks
+        hiddenNetworks.style.display = 'block';
+    } else {
+        // Hide networks
+        hiddenNetworks.style.display = 'none';
+    }
+}
+
+// Modal functions
+function showAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.remove('hidden');
+}
+
+function hideAddCustomerForm() {
+    document.getElementById('addCustomerModal').classList.add('hidden');
+}
+
+// Close modal on outside click
+document.getElementById('addCustomerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideAddCustomerForm();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideAddCustomerForm();
+    }
+});
+
+// Remove customer/network selection logic
+const removeCustomerSelect = document.getElementById('remove-customer-select');
+const removeNetworkSelection = document.getElementById('remove-network-selection');
+const removeNetworkSelect = document.getElementById('remove-network-select');
+const removeBtn = document.getElementById('remove-btn');
+const removeCustomerNameDisplay = document.getElementById('remove-customer-name-display');
+
+removeCustomerSelect.addEventListener('change', function() {
+    const customerName = this.value;
+    const networkCount = parseInt(this.selectedOptions[0]?.dataset.networkCount || '0');
+    
+    console.log('🗑️ Remove customer selected:', customerName, 'Networks:', networkCount);
+    
+    if (!customerName) {
+        hideRemoveNetworkSelection();
+        removeBtn.disabled = true;
+        return;
+    }
+    
+    if (networkCount > 1) {
+        // Show network selection for customers with multiple networks
+        removeCustomerNameDisplay.textContent = customerName;
+        loadNetworksForRemoval(customerName);
+        showRemoveNetworkSelection();
+        removeBtn.disabled = true;
+    } else if (networkCount === 1) {
+        // Single network - can remove directly
+        hideRemoveNetworkSelection();
+        removeBtn.disabled = false;
+    } else {
+        // No networks found
+        hideRemoveNetworkSelection();
+        removeBtn.disabled = true;
+    }
+});
+
+removeNetworkSelect.addEventListener('change', function() {
+    removeBtn.disabled = !this.value;
+});
+
+function showRemoveNetworkSelection() {
+    removeNetworkSelection.style.display = 'block';
+    removeNetworkSelection.classList.add('show');
+}
+
+function hideRemoveNetworkSelection() {
+    removeNetworkSelection.style.display = 'none';
+    removeNetworkSelection.classList.remove('show');
+}
+
+function loadNetworksForRemoval(customerName) {
+    console.log('🗑️ Loading networks for removal:', customerName);
+    
+    removeNetworkSelect.innerHTML = '<option value="">Loading networks...</option>';
+    
+    fetch(`/api/networks/${encodeURIComponent(customerName)}/`)
+        .then(response => {
+            console.log('📡 Removal API response:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📦 Removal network data:', data);
+            removeNetworkSelect.innerHTML = '<option value="">Choose a network to remove...</option>';
+            
+            if (data.status === 'success' && data.networks) {
+                data.networks.forEach(network => {
+                    const option = document.createElement('option');
+                    option.value = network.id;
+                    option.textContent = network.display_name || network.network_name || 'Default Network';
+                    removeNetworkSelect.appendChild(option);
+                    console.log(`🗑️ Added removal option: ${network.network_name || 'Default'} (ID: ${network.id})`);
+                });
+            } else {
+                removeNetworkSelect.innerHTML = '<option value="">No networks found</option>';
+                console.warn('⚠️ No networks for removal:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('💥 Removal loading error:', error);
+            removeNetworkSelect.innerHTML = `<option value="">Error: ${error.message}</option>`;
+        });
+}
+
+// Remove customer or network function
+function removeCustomerOrNetwork() {
+    console.log('🗑️ Remove button clicked!');
+    
+    const customerName = removeCustomerSelect.value;
+    const networkId = removeNetworkSelect.value;
+    
+    console.log('Customer selected:', customerName);
+    console.log('Network ID:', networkId);
+    console.log('Network selection display:', removeNetworkSelection.style.display);
+    
+    if (!customerName) {
+        alert('Please select a customer.');
+        return;
+    }
+    
+    let confirmMessage;
+    let removeData;
+    
+    if (removeNetworkSelection.style.display === 'block' && networkId) {
+        // Remove specific network
+        const networkName = removeNetworkSelect.options[removeNetworkSelect.selectedIndex].text;
+        confirmMessage = `Remove network "${networkName}" from customer "${customerName}"?\n\nThis will remove ONLY this specific network, not the entire customer.`;
+        removeData = { 
+            remove_customer_network: 'true',
+            customer_name: customerName,
+            network_id: networkId
+        };
+        console.log('🎯 Removing specific network:', networkId, 'from customer:', customerName);
+    } else {
+        // Remove entire customer (all networks)
+        confirmMessage = `Remove customer "${customerName}" and all associated networks?\n\nThis will remove ALL networks for this customer.`;
+        removeData = { remove_customer: customerName };
+        console.log('🎯 Removing entire customer:', customerName);
+    }
+    
+    console.log('Remove data:', removeData);
+    
+    if (!confirm(confirmMessage)) {
+        console.log('❌ User cancelled removal');
+        return;
+    }
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrfToken) {
+        alert('Error: CSRF token not found. Please refresh the page.');
+        console.error('❌ CSRF token not found');
+        return;
+    }
+    
+    const formData = new FormData();
+    Object.keys(removeData).forEach(key => {
+        formData.append(key, removeData[key]);
+        console.log(`📤 Form data: ${key} = ${removeData[key]}`);
+    });
+    formData.append('csrfmiddlewaretoken', csrfToken.value);
+    
+    console.log('🌐 Sending request to:', window.location.href);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('📨 Response status:', response.status);
+        console.log('📨 Response OK:', response.ok);
+        return response.json();
+    })
+    .then(data => {
+        console.log('📦 Response data:', data);
+        if (data.status === 'success') {
+            alert(data.message);
+            console.log('✅ Success, reloading page');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+            console.error('❌ Server error:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('💥 Fetch error:', error);
+        alert('An error occurred while removing: ' + error.message);
+    });
+}
+
+// Dashboard function
+function openDashboard() {
+    console.log('🚀 Opening dashboard...');
+    // Open dashboard in a new tab/window
+    window.open('/health_check/dashboard/', '_blank');
+}
+
+// Form submission handling
+document.getElementById('customerNetworkForm').addEventListener('submit', function(e) {
+    const customerName = customerSelect.value;
+    const networkId = networkSelect.value;
+    
+    console.log('🚀 Form submission - Customer Name:', customerName, 'Network ID:', networkId);
+    
+    if (!customerName) {
+        e.preventDefault();
+        alert('Please select a customer.');
+        customerSelect.focus();
+        return;
+    }
+    
+    // Allow proceeding if "no_networks" is selected (customer has no networks)
+    if (!networkId || networkId === '') {
+        e.preventDefault();
+        alert('Please select a network.');
+        networkSelect.focus();
+        return;
+    }
+    
+    // Special case: if "no_networks" is selected, allow proceeding
+    if (networkId === 'no_networks') {
+        console.log('✅ Proceeding without network (customer has no networks)');
+        return;
+    }
+    
+    console.log('✅ Form validation passed, proceeding with submission');
+});
+</script>
+{% endblock %}

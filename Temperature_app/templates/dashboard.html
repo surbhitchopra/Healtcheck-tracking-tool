@@ -1,0 +1,1811 @@
+{% extends 'base.html' %}
+
+{% block title %} Health Check Automation Dashboard{% endblock %}
+
+{% block extra_head %}
+{%load static %}
+  <style>
+    @font-face {
+     font-family: nokiaUlt;
+      src: url('../static/assets/fonts/NokiaPureHeadline_Lt.woff');
+    }
+    body {
+      background: #ffffff;
+      min-height: 100vh;
+      font-family: nokiaUlt;
+      
+    
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    .fade-in {
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(10px);
+      
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .step-card {
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+    }
+    .step-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+    .step-number {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+    .upload-btn {
+      background: linear-gradient(135deg, #2563eb,#003480 );
+      transition: all 0.3s ease;
+      box-shadow:  #2563eb;
+    }
+    .upload-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: #003480;
+    }
+    .file-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 8px 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .file-item:hover {
+      transform: translateX(4px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      border-color: #3b82f6;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .animate-pulse-slow {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .header-gradient {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .success-gradient {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    .action-btn {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 8px;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(135deg, #4b5563, #374151);
+    }
+    
+    /* Sidebar toggle animations */
+    #sticky-sidebar {
+      transition: transform 0.3s ease-in-out;
+    }
+    
+    #sidebar-toggle {
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    #sidebar-toggle:hover {
+      transform: translateY(-50%) scale(1.05);
+    }
+    
+    /* Vertical text styling */
+    #sidebar-toggle .transform {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex">
+  <!-- Main Content Area -->
+  <div class="flex-1 py-10 px-4 pr-80"> <!-- Add right padding for sidebar -->
+    <div class="w-full max-w-4xl space-y-8 mx-auto">
+    <!-- Title -->
+    <div class="bg-white p-6 rounded-2xl shadow border border-blue-100 text-center">
+      <h1 class="text-3xl font-bold text-blue-800 mb-2">Health Check Automation Dashboard</h1>
+     
+    </div>
+
+    <div id="tracker-message" class="hidden p-4 rounded-xl text-center text-white font-medium"></div>
+
+
+    <!-- Step 1: TEC Upload -->
+    <div id="step1" class="fade-in visible step-card p-8 rounded-2xl">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+          <div class="step-number mr-4">1</div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Upload Network HealthCheck Results Report</h2>
+            <p class="text-gray-600 text-sm">Upload your Excel file containing network health data</p>
+          </div>
+        </div>
+        
+        <!-- Change Customer Button - Small Size -->
+        <div class="ml-4 flex space-x-2">
+          <a href="{% url 'customer_selection' %}" 
+             class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-md font-medium text-xs transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-1">
+            <span>Change Customer</span>
+          </a>
+        </div>
+      </div>
+      <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+        <p class="text-sm text-yellow-800">
+          <strong>📋 Important:</strong> File name must contain customer name "<strong>{{ selected_customer.name }}</strong>" to be accepted.
+        </p>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4">
+        <p class="text-sm text-blue-800">
+          <strong>💡 Need a Network Health Check Report? </strong> 
+          <a href="https://de711tec001.nice.nokia.net/tec/bin/hcGetDetails.cgi?hcBase=1830&cmd=hcRprt&disp=list" target="_blank" class="text-blue-600 underline hover:text-blue-800 font-medium ml-1">Click here to get one</a>
+        </p>
+      </div>
+      <form id="tec-form" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+        <div>
+          <label class="block mb-3 text-sm font-semibold text-gray-700">Upload Network HealthCheck Results Report</label>
+          <input type="file" id="tec-report" accept=".xlsx" class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <div id="tec-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+        </div>
+        <div>
+          <label class="block mb-3 text-sm font-semibold text-gray-700">Temperature Threshold (°C)</label>
+          <div id="threshold-warning" class="hidden mb-3 p-3 rounded-lg text-sm bg-yellow-100 border border-yellow-200 text-yellow-800"></div>
+          <input type="number" id="threshold" name="threshold" required placeholder="Enter threshold (20-50)" class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300" oninput="checkPreviousThreshold()">
+        </div>
+        <button type="submit" id="tec-submit-btn" class="upload-btn w-full py-4 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3">
+          <span class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span class="text-lg"> Proceed</span>
+        </button>
+      </form>
+      <div id="tec-stdout" class="mt-4 hidden bg-gray-100 text-sm p-4 rounded-lg text-gray-800 whitespace-pre-wrap"></div>
+      <div id="tec-stderr" class="mt-2 hidden bg-red-100 text-sm p-4 rounded-lg text-red-700 whitespace-pre-wrap"></div>
+    </div>
+
+    <!--Step 2:
+
+ Host Upload -->
+    <div id="step2-host" class="fade-in hidden step-card p-8 rounded-2xl">
+      <div class="flex items-center mb-6">
+        <div class="step-number mr-4">2</div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Upload Host File</h2>
+          <p class="text-gray-600 text-sm">Upload your host configuration file to create tracker</p>
+        </div>
+      </div>
+      <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+        <p class="text-sm text-yellow-800">
+          <strong>📋 Important:</strong> File name must contain customer name "<strong>{{ selected_customer.name }}</strong>" to be accepted.
+        </p>
+      </div>
+      <form id="host-form" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+        <div>
+          <label class="block mb-3 text-sm font-semibold text-gray-700"Upload Current Host File</label>
+          <input type="file" id="host-file" accept=".xlsx" class="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-blue-400 transition-colors duration-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <div id="host-filename-validation" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
+        </div>
+        <button type="submit" id="host-submit-btn" class="upload-btn w-full py-4 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3">
+          <span class="spinner hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span class="text-lg"> Submit Host File</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Step 3: Download -->
+    <div id="step3" class="fade-in hidden step-card p-8 rounded-2xl border-2 border-green-200">
+      <div class="flex items-center mb-6">
+        <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-4">
+          <span class="text-white font-bold text-xl">✓</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Download Tracker File</h2>
+          <p class="text-gray-600 text-sm">Your tracker file has been generated successfully</p>
+        </div>
+      </div>
+      <div class="text-center bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-6 rounded-xl mb-6">
+        <p class="text-green-700 font-semibold text-lg">Tracker file generated successfully!</p>
+      </div>
+      <div class="text-center">
+        <a id="download-link" href="#" class="success-gradient inline-block px-8 py-4 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold text-lg">
+          📥 Download Tracker File
+        </a>
+      </div>
+    </div>
+
+    <!-- Step 4: Tracker History -->
+    <div id="step5-history" class="fade-in visible step-card p-8 rounded-2xl">
+      <div class="flex items-center mb-6">
+        <div class="w-12 h-12 bg-gradient-to-r from-gray-600 to-gray-800 rounded-full flex items-center justify-center mr-4">
+          <span class="text-white font-bold text-xl">📊</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 mb-1">Customer History</h2>
+          <p class="text-gray-600 text-sm">View and manage all uploaded files and generated trackers</p>
+        </div>
+      </div>
+      
+      <!-- Customer Folder -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between glass-effect p-4 rounded-xl border border-gray-200">
+          <div class="flex items-center">
+            <span class="text-2xl mr-3">📁</span>
+            <div>
+              <span class="font-semibold text-gray-800">{{ selected_customer.name }}</span>
+              <p class="text-gray-600 text-sm">Customer file management</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span id="file-count" class="text-sm font-medium text-blue-600 animate-pulse-slow">Loading...</span>
+          </div>
+        </div>
+      </div>
+      
+      
+      <div id="history-list" class="space-y-2 pl-6">
+        <p class="text-gray-600">Fetching history...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toggle Button for Sidebar - Vertical Tab -->
+  <div id="sidebar-toggle" class="fixed right-0 top-2/3 transform -translate-y-1/2 z-50 cursor-pointer">
+    <div class="bg-gradient-to-b from-blue-400 to-blue-500 rounded-l-lg shadow-lg px-3 py-5 hover:shadow-xl transition-all duration-300 hover:px-4">
+      <div class="flex flex-col items-center text-white">
+        <span id="toggle-icon" class="text-base mb-2">👤</span>
+        <div class="transform -rotate-90 whitespace-nowrap text-xs font-bold tracking-wider">
+          <span id="toggle-text">Info</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Right Sidebar for Sticky Notes -->
+  <div id="sticky-sidebar" class="fixed right-0 top-0 h-full w-72 bg-white shadow-xl border-l border-gray-200 pt-16 px-3 pb-4 overflow-y-auto transform translate-x-0 transition-transform duration-300 ease-in-out">
+    <div class="bg-gradient-to-b from-slate-50 to-blue-50 rounded-lg shadow-md p-4 mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+          <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
+            <span class="text-white text-sm">📈</span>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Session Overview</h3>
+            <p class="text-xs text-slate-600">Real-time workspace status</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+            ACTIVE
+          </div>
+          <button onclick="toggleSidebar()" class="w-7 h-7 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors">
+            <span class="text-sm font-bold">×</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="space-y-4">
+        <!-- Current Customer Card -->
+        <div class="bg-white rounded-lg shadow-md border border-slate-200 p-4">
+          <div class="flex items-center mb-3">
+            <div class="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+              <span class="text-blue-600 text-sm">👤</span>
+            </div>
+            <h4 class="font-bold text-slate-700 text-sm uppercase tracking-wide">Current Customer</h4>
+          </div>
+          <div id="sticky-customer" class="text-lg font-bold text-blue-700 mb-2 truncate">{{ selected_customer.name }}</div>
+          <div id="sticky-customer-time" class="text-xs text-slate-500 bg-blue-50 px-2 py-1 rounded mb-2">Loading...</div>
+          
+        </div>
+        
+        <!-- Latest Tracker Card - Maps to "Tracker Generated" folder in UI -->
+        <div class="bg-white rounded-lg shadow-md border border-slate-200 p-4">
+          <div class="flex items-center mb-3">
+            <div class="w-6 h-6 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
+              <span class="text-emerald-600 text-sm">📈</span>
+            </div>
+            <h4 class="font-bold text-slate-700 text-sm uppercase tracking-wide">Latest Tracker</h4>
+          </div>
+          <div id="sticky-tracker" class="text-base font-bold text-emerald-700 mb-2 truncate">Loading...</div>
+          <div id="sticky-tracker-details" class="text-xs text-slate-500 bg-emerald-50 px-2 py-1 rounded">Loading...</div>
+        </div>
+        
+        <!-- Last Activity Card -->
+        <div class="bg-white rounded-lg shadow-md border border-slate-200 p-4">
+          <div class="flex items-center mb-3">
+            <div class="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+              <span class="text-purple-600 text-sm">⚡</span>
+            </div>
+            <h4 class="font-bold text-slate-700 text-sm uppercase tracking-wide">Recent Activity</h4>
+          </div>
+          <div id="sticky-activity" class="text-base font-bold text-purple-700 mb-2">Loading...</div>
+          <div id="sticky-activity-details" class="text-xs text-slate-500 bg-purple-50 px-2 py-1 rounded">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const step1 = document.getElementById('step1');
+    const step2Host = document.getElementById('step2-host');
+    const step3 = document.getElementById('step3');
+    const downloadLink = document.getElementById('download-link');
+    const trackerMsg = document.getElementById('tracker-message');
+    
+    let previousThreshold = null; // Store previous threshold value
+    
+    // Function to check for previous threshold and show warning
+    async function checkPreviousThreshold() {
+      const currentThreshold = document.getElementById('threshold').value;
+      const warningDiv = document.getElementById('threshold-warning');
+      
+      // Only show warning if user has entered a value and we have a previous threshold
+      if (currentThreshold && previousThreshold && currentThreshold != previousThreshold) {
+        warningDiv.innerHTML = `
+          <strong>⚠️ Temperature Threshold Changed:</strong><br>
+          Previous threshold was <strong>${previousThreshold}°C</strong><br>
+          You are now entering <strong>${currentThreshold}°C</strong><br>
+          <span class="text-xs">This will update the temperature analysis in your tracker.</span>
+        `;
+        warningDiv.classList.remove('hidden');
+      } else if (currentThreshold && previousThreshold && currentThreshold == previousThreshold) {
+        warningDiv.innerHTML = `
+          <strong>✅ Same threshold:</strong> Using previous threshold <strong>${previousThreshold}°C</strong>
+        `;
+        warningDiv.classList.remove('hidden');
+      } else {
+        warningDiv.classList.add('hidden');
+      }
+    }
+    
+    // Function to fetch and set previous threshold
+    async function fetchPreviousThreshold() {
+      try {
+        console.log('🔍 Fetching previous threshold from API...');
+        const response = await fetch(`{% url 'get_previous_threshold' %}`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          }
+        });
+        
+        const data = await response.json();
+        console.log('📊 Previous threshold API response:', data);
+        
+        if (data.status === 'success' && data.previous_threshold) {
+          // Only update previousThreshold if we don't already have one from Django template
+          if (!previousThreshold) {
+            previousThreshold = data.previous_threshold;
+            console.log('✅ Previous threshold loaded from API:', previousThreshold + '°C');
+            
+            // If threshold input is empty, populate it
+            const thresholdInput = document.getElementById('threshold');
+            if (thresholdInput && !thresholdInput.value) {
+              thresholdInput.value = previousThreshold;
+              console.log('✅ Auto-populated threshold input with:', previousThreshold + '°C');
+            }
+          } else {
+            console.log('💾 Previous threshold already set from Django:', previousThreshold + '°C');
+          }
+        } else {
+          console.log('⚠️ No previous threshold found from API');
+        }
+      } catch (err) {
+        console.error('❌ Error fetching previous threshold:', err);
+      }
+    }
+    
+    // Function to refresh temperature threshold (call when customer changes)
+    async function refreshTemperatureThreshold() {
+      try {
+        console.log('🔄 Refreshing temperature threshold...');
+        const thresholdInput = document.getElementById('threshold');
+        
+        // Clear current value
+        previousThreshold = null;
+        if (thresholdInput) {
+          thresholdInput.value = '';
+        }
+        
+        // Fetch fresh threshold data
+        await fetchPreviousThreshold();
+        
+        // If still no threshold, try to get from sticky notes
+        if (!previousThreshold) {
+          await updateStickyNotes();
+        }
+        
+        console.log('✅ Temperature threshold refresh complete');
+      } catch (err) {
+        console.error('❌ Error refreshing temperature threshold:', err);
+      }
+    }
+    
+    // Function to update temperature threshold after successful generation
+    function updateTemperatureAfterGeneration(temperature) {
+      try {
+        const usedThreshold = parseFloat(temperature);
+        if (!isNaN(usedThreshold)) {
+          previousThreshold = usedThreshold;
+          const thresholdInput = document.getElementById('threshold');
+          if (thresholdInput) {
+            thresholdInput.value = usedThreshold;
+          }
+          console.log('🌡️ Updated temperature threshold after generation:', usedThreshold + '°C');
+          
+          // Show brief confirmation
+          const warningDiv = document.getElementById('threshold-warning');
+          if (warningDiv) {
+            warningDiv.innerHTML = `
+              <strong>✅ Updated:</strong> Temperature threshold set to <strong>${usedThreshold}°C</strong> for next upload
+            `;
+            warningDiv.className = 'mb-3 p-3 rounded-lg text-sm bg-green-100 border border-green-200 text-green-800';
+            warningDiv.classList.remove('hidden');
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+              warningDiv.classList.add('hidden');
+            }, 3000);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error updating temperature after generation:', err);
+      }
+    }
+    
+    // Function to update sticky notes
+    async function updateStickyNotes() {
+      try {
+        const response = await fetch(`{% url 'sticky_notes_data' %}`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Sticky notes data received:', data);
+        console.log('🔍 DEBUG: last_tracker =', data.last_tracker);
+        console.log('🔍 DEBUG: previous_tracker =', data.previous_tracker);
+        console.log('🔍 DEBUG: current_customer.previous_temperature =', data.current_customer?.previous_temperature);
+        
+        if (data.status === 'success') {
+          // Update customer info
+          if (data.current_customer) {
+            document.getElementById('sticky-customer').textContent = data.current_customer.name;
+            document.getElementById('sticky-customer-time').textContent = `Selected: ${data.current_customer.selected_time}`;
+          } else {
+            document.getElementById('sticky-customer').textContent = '{{ selected_customer.name }}';
+            document.getElementById('sticky-customer-time').textContent = 'Just now';
+          }
+          
+          
+          // Update latest tracker info
+          if (data.last_tracker) {
+            document.getElementById('sticky-tracker').textContent = data.last_tracker.filename;
+            const thresholdInfo = data.last_tracker.threshold ? ` • ${data.last_tracker.threshold}°C` : '';
+            document.getElementById('sticky-tracker-details').textContent = 
+              `${data.last_tracker.customer} • ${data.last_tracker.timestamp}${thresholdInfo}`;
+            console.log('✅ LATEST TRACKER: Displaying', data.last_tracker.threshold + '°C', 'from', data.last_tracker.filename);
+          } else {
+            document.getElementById('sticky-tracker').textContent = 'No tracker yet';
+            document.getElementById('sticky-tracker-details').textContent = 'Upload report and host file to generate';
+            console.log('❌ LATEST TRACKER: No tracker data');
+          }
+          
+          // Update last activity
+          if (data.last_activity) {
+            document.getElementById('sticky-activity').textContent = data.last_activity.action;
+            document.getElementById('sticky-activity-details').textContent = 
+              `${data.last_activity.customer} • ${data.last_activity.timestamp}`;
+          } else {
+            document.getElementById('sticky-activity').textContent = 'No activity yet';
+            document.getElementById('sticky-activity-details').textContent = 'Start by uploading a report';
+          }
+          
+          // Auto-fill temperature threshold input with current temperature if available
+          if (data.current_customer && data.current_customer.current_temperature) {
+            const thresholdInput = document.getElementById('threshold');
+            if (thresholdInput) {
+              // Always update with latest temperature, even if field has value
+              thresholdInput.value = data.current_customer.current_temperature;
+              previousThreshold = data.current_customer.current_temperature;
+              console.log('✅ Updated threshold input with current temperature:', data.current_customer.current_temperature + '°C');
+            }
+          }
+        } else {
+          console.warn('Sticky notes API returned error:', data.message);
+          throw new Error(data.message || 'API returned error status');
+        }
+      } catch (err) {
+        console.error('Error updating sticky notes:', err);
+        // Set fallback values with current customer info
+        document.getElementById('sticky-customer').textContent = '{{ selected_customer.name }}';
+        document.getElementById('sticky-customer-time').textContent = 'Just now';
+        document.getElementById('sticky-tracker').textContent = 'No tracker yet';
+        document.getElementById('sticky-tracker-details').textContent = 'Upload report and host file to generate';
+        document.getElementById('sticky-activity').textContent = 'No activity yet';
+        document.getElementById('sticky-activity-details').textContent = 'Start by uploading a report';
+      }
+    }
+
+    function showMessage(msg, bgColor) {
+      trackerMsg.className = `p-4 rounded-xl text-center text-white font-medium mb-4 ${bgColor}`;
+      trackerMsg.textContent = msg;
+      trackerMsg.classList.remove('hidden');
+      setTimeout(() => trackerMsg.classList.add('hidden'), 5000);
+    }
+
+    document.getElementById('tec-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const file = document.getElementById('tec-report').files[0];
+      const threshold = document.getElementById('threshold').value;
+      const stdoutBox = document.getElementById('tec-stdout');
+      const stderrBox = document.getElementById('tec-stderr');
+      const btn = document.getElementById('tec-submit-btn');
+      const spinner = btn.querySelector('.spinner');
+
+      if (!file) return alert('Please upload a TEC report.');
+      if (!threshold) return alert('Please enter a threshold value.');
+      const thresholdValue = parseFloat(threshold);
+      if (isNaN(thresholdValue) || thresholdValue < 20 || thresholdValue > 50) {
+        return alert('❌ Threshold must be between 20°C and 50°C.');
+      }
+
+      const formData = new FormData();
+      formData.append('tec_report', file);
+      formData.append('threshold', threshold);
+
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+
+      try {
+        const response = await fetch("{% url 'upload_report' %}", {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+        console.log('TEC Upload Response:', data); // Debug log
+        stdoutBox.textContent = data.stdout || '';
+        stderrBox.textContent = data.stderr || '';
+        stdoutBox.classList.remove('hidden');
+        stderrBox.classList.remove('hidden');
+
+        if (data.status === 'success') {
+          console.log('TEC Success: Showing download step');
+          showMessage('✅ Tracker generated successfully.', 'bg-green-600');
+          downloadLink.href = data.file_url;
+          step1.classList.add('hidden');
+          step3.classList.remove('hidden');
+          step3.classList.add('visible');
+          
+          // UPDATE: Set the used temperature as the new threshold for next upload
+          updateTemperatureAfterGeneration(threshold);
+          
+          // Update file count immediately if available
+          if (data.file_count !== undefined) {
+            document.getElementById('file-count').textContent = `${data.file_count} file${data.file_count !== 1 ? 's' : ''}`;
+          }
+          // Refresh tracker history to show new files
+          setTimeout(() => {
+            fetchTrackerHistory();
+            updateStickyNotes(); // Update sticky notes after successful upload
+          }, 1000); // Small delay to ensure file is saved
+        } else if (data.status === 'pending') {
+          console.log('TEC Pending: Showing host upload step');
+          showMessage('⚠️ Tracker not found. Upload Host file.', 'bg-yellow-500');
+          step1.classList.add('hidden');
+          step2Host.classList.remove('hidden');
+          step2Host.classList.add('visible');
+          fetchTrackerHistory(); // Refresh to show the report file
+        } else {
+          console.log('TEC Error:', data.message);
+          showMessage(`❌ ${data.message}`, 'bg-red-600');
+          fetchTrackerHistory(); // Refresh even on error to show any partial updates
+        }
+
+      } catch (err) {
+        console.error(err);
+        showMessage('❌ Error uploading  report.', 'bg-red-600');
+      } finally {
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('host-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const hostFile = document.getElementById('host-file').files[0];
+      const btn = document.getElementById('host-submit-btn');
+      const spinner = btn.querySelector('.spinner');
+
+      if (!hostFile) return alert('Please upload the Host file.');
+
+      const formData = new FormData();
+      formData.append('host_file', hostFile);
+
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+
+      try {
+        const response = await fetch("{% url 'upload_host' %}", {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+        if (data.status === 'success' && data.file_url) {
+          downloadLink.href = data.file_url;
+          showMessage('✅ Host uploaded. Tracker file generated.', 'bg-blue-600');
+          step2Host.classList.add('hidden');
+          step3.classList.remove('hidden');
+          step3.classList.add('visible');
+          
+          // UPDATE: If we have a temperature from server response, update it
+          if (data.temperature) {
+            updateTemperatureAfterGeneration(data.temperature);
+          }
+          
+          // Update file count immediately if available
+          if (data.file_count !== undefined) {
+            document.getElementById('file-count').textContent = `${data.file_count} file${data.file_count !== 1 ? 's' : ''}`;
+          }
+          // Refresh tracker history to show new files
+          setTimeout(() => {
+            fetchTrackerHistory();
+            updateStickyNotes(); // Update sticky notes after successful host upload
+          }, 1000); // Small delay to ensure file is saved
+        } else if (data.status === 'error') {
+          showMessage(`❌ ${data.message}`, 'bg-red-600');
+          // Still refresh history in case of partial success
+          fetchTrackerHistory();
+        } else {
+          showMessage('⚠️ Host upload processed but no tracker file generated.', 'bg-yellow-600');
+          fetchTrackerHistory();
+        }
+
+      } catch (err) {
+        console.error(err);
+        showMessage('❌ Failed to upload host file.', 'bg-red-600');
+      } finally {
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+      }
+    });
+
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    async function cleanupDatabase() {
+      try {
+        const response = await fetch("{% url 'cleanup_database' %}", {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          }
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+          showMessage(`✅ Cleanup successful. ${data.cleaned_count} records processed.`, 'bg-green-600');
+          fetchTrackerHistory(); // Sync history after cleanup
+        } else {
+          showMessage(`❌ Cleanup failed: ${data.message}`, 'bg-red-600');
+        }
+      } catch (err) {
+        console.error('Error during cleanup:', err);
+        showMessage('❌ Error during cleanup.', 'bg-red-600');
+      }
+    }
+
+    async function fetchTrackerHistory() {
+      try {
+        // Add cache-busting parameter to force fresh data
+        const timestamp = new Date().getTime();
+        console.log('🔄 Fetching tracker history with timestamp:', timestamp);
+        const response = await fetch(`{% url 'tracker_history' %}?t=${timestamp}&cb=${Math.random()}`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          cache: 'no-store'
+        });
+        
+        const data = await response.json();
+        console.log('Tracker history data:', data); // Debug log
+        const historyList = document.getElementById('history-list');
+        
+        if (data.status === 'success' && data.customer_folders && data.customer_folders.length > 0) {
+          const customerFolders = data.customer_folders;
+          const selectedCustomerId = data.selected_customer_id;
+          
+          // Update file count using server-provided total for selected customer
+          const fileCount = document.getElementById('file-count');
+          const selectedCustomerFiles = data.selected_customer_files || 0;
+          fileCount.textContent = `${selectedCustomerFiles} file${selectedCustomerFiles !== 1 ? 's' : ''} for ${data.selected_customer_name}`;
+          
+          
+          // Clear existing content
+          historyList.innerHTML = '';
+          
+          // Create folders for each customer
+          customerFolders.forEach((customerFolder, index) => {
+            const isSelected = customerFolder.customer_id === selectedCustomerId;
+            const folders = customerFolder.folders;
+            
+            // Create customer folder section
+            const customerSection = document.createElement('div');
+            customerSection.className = 'mb-4';
+            
+            const customerHeader = document.createElement('div');
+            customerHeader.className = `flex items-center border-l-4 p-2 mb-2 cursor-pointer hover:bg-blue-100 transition ${
+              isSelected ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-300'
+            }`;
+            customerHeader.innerHTML = `
+              <span class="text-blue-600 mr-2 transition-transform duration-200" id="customer-arrow-${index}">▶</span>
+              <span class="text-blue-600 mr-2">📂</span>
+              <span class="font-medium ${isSelected ? 'text-blue-700' : 'text-gray-700'}">${customerFolder.customer_name}</span>
+              <span class="text-xs ${isSelected ? 'text-blue-600' : 'text-gray-500'} ml-2">${isSelected ? ' - Current' : ''}</span>
+            `;
+            
+            const customerFilesList = document.createElement('div');
+            customerFilesList.className = 'space-y-2 pl-4 hidden';
+            customerFilesList.id = `customer-files-list-${index}`;
+            
+            // Add click handler for customer folder
+            customerHeader.addEventListener('click', () => {
+              const arrow = document.getElementById(`customer-arrow-${index}`);
+              if (customerFilesList.classList.contains('hidden')) {
+                customerFilesList.classList.remove('hidden');
+                arrow.style.transform = 'rotate(90deg)';
+                arrow.innerHTML = '▼';
+              } else {
+                customerFilesList.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+                arrow.innerHTML = '▶';
+              }
+            });
+            
+            // Create subfolders
+            const subfolders = [
+              { name: 'Host Files', key: 'host_files', icon: '📋', color: 'text-green-600' },
+              { name: 'Reports', key: 'reports', icon: '📊', color: 'text-blue-600' },
+              { name: 'Tracker Generated', key: 'tracker_generated', icon: '📈', color: 'text-purple-600' },
+              { name: 'Old Trackers', key: 'old_trackers', icon: '📁', color: 'text-orange-600' }
+            ];
+            
+            subfolders.forEach((subfolder, subIndex) => {
+              const files = folders[subfolder.key] || [];
+              console.log(`📁 ${customerFolder.customer_name} - ${subfolder.name}: ${files.length} files`);
+              if (subfolder.key === 'old_trackers') {
+                console.log('🟠 OLD TRACKERS DEBUG:', files);
+              }
+              // Always show all folders regardless of file count
+              if (true) {
+                // Subfolder header
+                const subfolderHeader = document.createElement('div');
+                subfolderHeader.className = 'flex items-center p-2 bg-gray-50 border border-gray-200 rounded cursor-pointer hover:bg-gray-100 transition';
+                subfolderHeader.innerHTML = `
+                  <span class="text-gray-600 mr-2 transition-transform duration-200" id="subfolder-arrow-${index}-${subIndex}">▶</span>
+                  <span class="${subfolder.color} mr-2">${subfolder.icon}</span>
+                  <span class="font-medium text-gray-700">${subfolder.name}</span>
+                  <span class="text-xs text-gray-500 ml-2">(${files.length})</span>
+                `;
+                
+                const subfolderFilesList = document.createElement('div');
+                subfolderFilesList.className = 'space-y-1 pl-6 mt-1 hidden';
+                subfolderFilesList.id = `subfolder-files-list-${index}-${subIndex}`;
+                
+                // Add click handler for subfolder
+                subfolderHeader.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  const arrow = document.getElementById(`subfolder-arrow-${index}-${subIndex}`);
+                  if (subfolderFilesList.classList.contains('hidden')) {
+                    subfolderFilesList.classList.remove('hidden');
+                    arrow.style.transform = 'rotate(90deg)';
+                    arrow.innerHTML = '▼';
+                  } else {
+                    subfolderFilesList.classList.add('hidden');
+                    arrow.style.transform = 'rotate(0deg)';
+                    arrow.innerHTML = '▶';
+                  }
+                });
+                
+                // Add files to subfolder
+                if (files.length > 0) {
+                  files.forEach(file => {
+                    const fileEl = document.createElement('div');
+                    fileEl.className = 'flex justify-between items-center bg-white border border-gray-100 px-3 py-2 rounded hover:bg-gray-50 transition';
+                    
+                    const thresholdInfo = file.threshold ? `(${file.threshold}°C)` : '';
+                    const statusColor = file.status === 'Success' ? 'text-green-600' : file.status === 'Processing' ? 'text-yellow-600' : 'text-red-600';
+                    const fileName = file.filename || '';
+                    const fileStatus = file.status || '';
+                    const fileDate = file.upload_date || file.generated_at || '';
+                    
+                    // Special handling for old trackers - emphasize temperature
+                    const isOldTracker = subfolder.key === 'old_trackers';
+                    const temperatureDisplay = isOldTracker && file.threshold ? 
+                      `<span class="text-sm font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded">${file.threshold}°C</span>` : 
+                      `<span class="text-xs text-blue-600 ml-2">${thresholdInfo}</span>`;
+                    
+                    fileEl.innerHTML = `
+                      <div class="flex-1">
+                        <div class="flex items-center">
+                          <span class="text-gray-600 mr-2">📄</span>
+                          <span class="font-medium text-gray-800 text-sm">${fileName}</span>
+                          ${temperatureDisplay}
+                          <span class="text-xs ${statusColor} ml-2">${fileStatus}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 ml-4">
+                          ${fileDate}
+                        </div>
+                      </div>
+                      <div class="flex gap-1">
+                        ${file.file_url ? `<a href="${file.file_url}" download class="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 transition flex items-center" title="Download ${fileName}">⬇️</a>` : ''}
+                        ${isOldTracker ? `<button onclick="showUploadOldTracker()" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition flex items-center" title="Upload Another Old Tracker">📤</button>` : ''}
+                        ${subfolder.key === 'host_files' ? `<button onclick="triggerHostUpload()" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition flex items-center" title="Upload Another Host File">📤</button>` : ''}
+                        ${subfolder.key === 'reports' ? `<button onclick="triggerTecUpload()" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition flex items-center" title="Upload Another Report">📤</button>` : ''}
+                        ${subfolder.key === 'tracker_generated' ? `<button onclick="triggerTrackerUpload()" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition flex items-center" title="Upload Tracker File">📤</button>` : ''}
+                        ${file.upload_id ? `<button onclick="deleteTrackerFile(${file.upload_id}, '${fileName}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition flex items-center" title="Delete ${fileName}">🗑️</button>` : ''}
+                      </div>
+                    `;
+                    subfolderFilesList.appendChild(fileEl);
+                  });
+                }
+                
+                // Old tracker upload form removed - now using small upload button beside download
+                
+                if (files.length === 0) {
+                  // Show empty folder message with upload functionality
+                  const emptyMsg = document.createElement('div');
+                  emptyMsg.className = 'text-center py-4 text-gray-400 text-sm';
+                  
+                  if (subfolder.key === 'old_trackers') {
+                    // Add all three actions for empty old trackers folder (same as when files exist)
+                    emptyMsg.innerHTML = `
+                      <div class="space-y-3">
+                        <div class="italic">
+                          <span class="text-gray-300">📂</span> No ${subfolder.name.toLowerCase()} uploaded yet
+                        </div>
+                        <div class="flex justify-center gap-1">
+                          <button onclick="showDownloadOldTracker()" 
+                                  class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Download Old Tracker">⬇️</button>
+                          <button onclick="showUploadOldTracker()" 
+                                  class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Upload Old Tracker">📤</button>
+                          <button onclick="showDeleteOldTracker()" 
+                                  class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Delete Old Tracker">🗑️</button>
+                        </div>
+                      </div>
+                    `;
+                  } else if (subfolder.key === 'host_files') {
+                    // Add all three actions for empty host files folder (same as when files exist)
+                    emptyMsg.innerHTML = `
+                      <div class="space-y-3">
+                        <div class="italic">
+                          <span class="text-gray-300">📂</span> No ${subfolder.name.toLowerCase()} uploaded yet
+                        </div>
+                        <div class="flex justify-center gap-1">
+                          <button onclick="showDownloadHostFile()" 
+                                  class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Download Host File">⬇️</button>
+                          <button onclick="triggerHostUpload()" 
+                                  class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Upload Host File">📤</button>
+                          <button onclick="showDeleteHostFile()" 
+                                  class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Delete Host File">🗑️</button>
+                        </div>
+                      </div>
+                    `;
+                  } else if (subfolder.key === 'reports') {
+                    // Add all three actions for empty reports folder (same as when files exist)
+                    emptyMsg.innerHTML = `
+                      <div class="space-y-3">
+                        <div class="italic">
+                          <span class="text-gray-300">📂</span> No ${subfolder.name.toLowerCase()} uploaded yet
+                        </div>
+                        <div class="flex justify-center gap-1">
+                          <button onclick="showDownloadReport()" 
+                                  class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Download Report">⬇️</button>
+                          <button onclick="triggerTecUpload()" 
+                                  class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Upload Report">📤</button>
+                          <button onclick="showDeleteReport()" 
+                                  class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Delete Report">🗑️</button>
+                        </div>
+                      </div>
+                    `;
+                  } else {
+                    // Add actions for tracker_generated folder
+                    emptyMsg.innerHTML = `
+                      <div class="space-y-3">
+                        <div class="italic">
+                          <span class="text-gray-300">📂</span> No ${subfolder.name.toLowerCase()} uploaded yet
+                        </div>
+                        <div class="flex justify-center gap-1">
+                          <button onclick="showDownloadTrackerGenerated()" 
+                                  class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Download Tracker">⬇️</button>
+                          <button onclick="triggerTrackerUpload()" 
+                                  class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Upload Tracker">📤</button>
+                          <button onclick="showDeleteTrackerGenerated()" 
+                                  class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs transition flex items-center" 
+                                  title="Delete Tracker">🗑️</button>
+                        </div>
+                      </div>
+                    `;
+                  }
+                  
+                  subfolderFilesList.appendChild(emptyMsg);
+                }
+                
+                customerFilesList.appendChild(subfolderHeader);
+                customerFilesList.appendChild(subfolderFilesList);
+              }
+            });
+            
+            customerSection.appendChild(customerHeader);
+            customerSection.appendChild(customerFilesList);
+            historyList.appendChild(customerSection);
+          });
+        } else {
+          // Update file count to 0
+          const fileCount = document.getElementById('file-count');
+          fileCount.textContent = '0 tracker files for ' + data.selected_customer_name;
+          
+          historyList.innerHTML = `<p class="text-gray-500">No tracker history found for this customer.</p>`;
+          
+          // Automatically trigger workflow reset
+          setTimeout(() => {
+            checkAndShowHostUpload();
+          }, 100);
+        }
+      } catch (err) {
+        console.error("Failed to fetch tracker history:", err);
+        document.getElementById('history-list').innerHTML = `<p class="text-red-500">Failed to load history.</p>`;
+      }
+    }
+    
+    // Real-time filename validation
+    async function validateFilename(filename, validationElementId) {
+      if (!filename) {
+        document.getElementById(validationElementId).classList.add('hidden');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`{% url 'validate_filename' %}?filename=${encodeURIComponent(filename)}`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          }
+        });
+        
+        const data = await response.json();
+        const validationEl = document.getElementById(validationElementId);
+        
+        if (data.status === 'success') {
+          validationEl.classList.remove('hidden');
+          if (data.is_valid) {
+            validationEl.className = 'mt-1 mb-1 p-1 rounded text-xs bg-green-100 border border-green-200 text-green-700';
+            validationEl.innerHTML = '✅ ' + data.message;
+          } else {
+            validationEl.className = 'mt-1 mb-1 p-1 rounded text-xs bg-red-100 border border-red-200 text-red-700';
+            validationEl.innerHTML = '❌ ' + data.message;
+          }
+        }
+      } catch (err) {
+        console.error('Error validating filename:', err);
+      }
+    }
+    
+    // Add event listeners for file inputs
+    document.getElementById('tec-report').addEventListener('change', function(e) {
+      const filename = e.target.files[0]?.name || '';
+      validateFilename(filename, 'tec-filename-validation');
+    });
+    
+    document.getElementById('host-file').addEventListener('change', function(e) {
+      const filename = e.target.files[0]?.name || '';
+      validateFilename(filename, 'host-filename-validation');
+    });
+    
+    
+    // Delete tracker file function
+    async function deleteTrackerFile(uploadId, fileName) {
+      if (!confirm(`Are you sure you want to delete tracker file '${fileName}'?`)) {
+        return;
+      }
+      
+      try {
+        const formData = new FormData();
+        formData.append('upload_id', uploadId);
+        
+        const response = await fetch("{% url 'delete_tracker' %}", {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: formData
+        })
+
+        document.getElementById('tec-stdout').classList.add("hidden");
+        document.getElementById('tec-stderr').classList.add("hidden");
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+          showMessage(`✅ ${data.message}`, 'bg-green-600');
+          
+          // Clear existing history immediately for instant feedback
+          const historyList = document.getElementById('history-list');
+          historyList.innerHTML = '<p class="text-gray-600">Refreshing history...</p>';
+          
+          // If workflow restart is needed, show TEC upload form
+          if (data.workflow_restart_needed) {
+            // Hide all steps first
+            step1.classList.remove('hidden');
+            step2Host.classList.add('hidden');
+            step3.classList.add('hidden');
+            
+            // Show TEC upload step
+            step1.classList.add('visible');
+            
+            setTimeout(() => {
+              showMessage('🔄 Complete cleanup successful! All files removed. Ready to upload report and Host file again.', 'bg-blue-500');
+            }, 1000);
+          }
+          
+          // Add delay to ensure database deletion is committed
+          setTimeout(async () => {
+            await fetchTrackerHistory();
+            checkAndShowHostUpload();
+          }, 800); // Increased delay to ensure database consistency
+
+          window.location.reload();
+        } 
+        
+      } catch (err) {
+        console.error('Error deleting tracker file:', err);
+        showMessage('❌ Error deleting tracker file.', 'bg-red-600');
+      }
+    }
+    
+    // Check if host upload should be shown
+    function checkAndShowHostUpload() {
+      // If no tracker files exist, show the host upload step
+      setTimeout(() => {
+        const historyList = document.getElementById('history-list');
+        const trackerFilesList = document.getElementById('tracker-files-list');
+        const bulkActions = document.getElementById('bulk-actions');
+        
+        // Check if there are no tracker files or the message shows no history
+        const hasNoTrackers = historyList.innerHTML.includes('No tracker history found') || 
+                             (trackerFilesList && trackerFilesList.children.length === 0) ||
+                             historyList.textContent.includes('No tracker history found');
+        
+        if (hasNoTrackers) {
+          // Hide all steps first
+          step1.classList.add('hidden');
+          step2Host.classList.add('hidden');
+          step3.classList.add('hidden');
+          
+          // Show TEC upload step first (since we need TEC report before host)
+          step1.classList.remove('hidden');
+          step1.classList.add('visible');
+          
+          showMessage('⚠️ No tracker files found. Please upload  report first, then Host file to generate tracker.', 'bg-yellow-500');
+        }
+      }, 500);
+    }
+    
+    
+    // Toggle sidebar visibility
+    let sidebarOpen = true;
+    
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sticky-sidebar');
+      const toggleButton = document.getElementById('sidebar-toggle');
+      const toggleIcon = document.getElementById('toggle-icon');
+      const toggleText = document.getElementById('toggle-text');
+      const mainContent = document.querySelector('.flex-1');
+      
+      if (sidebarOpen) {
+        // Close sidebar
+        sidebar.classList.add('translate-x-full');
+        toggleIcon.textContent = '👤'; // Person icon when closed
+        toggleText.textContent = 'INFO'; // Short text when closed
+        mainContent.classList.remove('pr-80');
+        mainContent.classList.add('pr-4');
+        sidebarOpen = false;
+      } else {
+        // Open sidebar
+        sidebar.classList.remove('translate-x-full');
+        toggleIcon.textContent = '×'; // X icon when open
+        toggleText.textContent = 'HIDE'; // Short text when open
+        mainContent.classList.remove('pr-4');
+        mainContent.classList.add('pr-80');
+        sidebarOpen = true;
+      }
+    }
+    
+    // Load tracker history when page loads
+    document.addEventListener('DOMContentLoaded', async function() {
+      console.log('🚀 Dashboard: Initializing temperature threshold...');
+      
+      // Set temperature threshold - prioritize last used over default
+      const thresholdInput = document.getElementById('threshold');
+      {% if last_temperature %}
+      const lastUsedTemperature = {{ last_temperature }};
+      console.log('🌡️ Frontend: Received last_temperature from Django:', lastUsedTemperature);
+      if (thresholdInput && lastUsedTemperature) {
+        thresholdInput.value = lastUsedTemperature;
+        console.log('✅ Frontend: Set temperature input to:', lastUsedTemperature + '°C');
+        
+        // Set as previous threshold for comparison (this will be used for warnings)
+        previousThreshold = lastUsedTemperature;
+        
+        // Show subtle notification about auto-population
+        const warningDiv = document.getElementById('threshold-warning');
+        if (warningDiv) {
+          warningDiv.innerHTML = `
+            <strong>ℹ️ Auto-populated:</strong> Using last temperature <strong>${lastUsedTemperature}°C</strong> from previous upload
+          `;
+          warningDiv.className = 'mb-3 p-3 rounded-lg text-sm bg-blue-100 border border-blue-200 text-blue-800';
+          warningDiv.classList.remove('hidden');
+          
+          // Hide the notification after 5 seconds
+          setTimeout(() => {
+            warningDiv.classList.add('hidden');
+          }, 5000);
+        }
+      }
+      {% else %}
+      // Fall back to customer default if no last temperature
+      const customerDefaultThreshold = {{ selected_customer.default_threshold|default:30 }};
+      console.log('⚠️ Frontend: No last_temperature, using customer default:', customerDefaultThreshold);
+      if (thresholdInput && customerDefaultThreshold) {
+        thresholdInput.value = customerDefaultThreshold;
+        console.log('✅ Frontend: Set temperature input to customer default:', customerDefaultThreshold + '°C');
+        
+        // Show notification about using default
+        const warningDiv = document.getElementById('threshold-warning');
+        if (warningDiv) {
+          warningDiv.innerHTML = `
+            <strong>🏭 Using default:</strong> Customer default temperature <strong>${customerDefaultThreshold}°C</strong>
+          `;
+          warningDiv.className = 'mb-3 p-3 rounded-lg text-sm bg-gray-100 border border-gray-200 text-gray-800';
+          warningDiv.classList.remove('hidden');
+          
+          // Hide the notification after 3 seconds
+          setTimeout(() => {
+            warningDiv.classList.add('hidden');
+          }, 3000);
+        }
+      }
+      {% endif %}
+      
+      // Load data in sequence with error handling
+      try {
+        await fetchPreviousThreshold(); // Load previous threshold first
+        await updateStickyNotes(); // Load sticky notes data
+        await fetchTrackerHistory();
+        
+        // Final check: ensure threshold is set
+        const thresholdInput = document.getElementById('threshold');
+        if (thresholdInput && !thresholdInput.value) {
+          console.log('⚠️ Final check: No threshold set, using fallback');
+          thresholdInput.value = '30'; // Fallback
+        }
+        
+        console.log('✅ Dashboard initialization complete');
+      } catch (err) {
+        console.error('❌ Error during dashboard initialization:', err);
+      }
+      
+      // Check initial state and adjust workflow if needed
+      setTimeout(() => {
+        checkAndShowHostUpload();
+      }, 200);
+      
+      // Add click event to toggle button
+      document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+    });
+  function showUploadOldTracker() {
+    console.log('showUploadOldTracker called');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx';
+    input.style.display = 'none';
+    input.onchange = async function(event) {
+        console.log('File selected:', event.target.files[0]);
+        const file = event.target.files[0];
+        if (!file) {
+            console.log('No file selected');
+            return alert('Please select a file to upload.');
+        }
+        
+        console.log('File name:', file.name);
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            console.log('Invalid file type');
+            return alert('❌ Please upload an Excel (.xlsx) file.');
+        }
+        
+        console.log('Starting upload...');
+        showMessage('📤 Uploading old tracker...', 'bg-blue-600');
+        
+        const formData = new FormData();
+        formData.append('old_tracker_file', file);
+        
+        try {
+            console.log('Sending request to /upload-old-tracker/');
+            const response = await fetch("/upload-old-tracker/", {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+            
+            if (data.status === 'success') {
+                showMessage(`✅ ${data.message}`, 'bg-green-600');
+                setTimeout(() => {
+                    fetchTrackerHistory();
+                    updateStickyNotes();
+                }, 1000);
+            } else {
+                showMessage(`❌ ${data.message}`, 'bg-red-600');
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            showMessage('❌ Error uploading old tracker file.', 'bg-red-600');
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  }
+  
+  // Function to trigger Host file upload from empty folder
+  function triggerHostUpload() {
+    console.log('triggerHostUpload called');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx';
+    input.style.display = 'none';
+    input.onchange = async function(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return alert('Please select a file to upload.');
+        }
+        
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            return alert('❌ Please upload an Excel (.xlsx) file.');
+        }
+        
+        // Check if filename contains "host"
+        if (!file.name.toLowerCase().includes('host')) {
+            return alert('❌ Please upload a HOST file. Filename must contain "host".');
+        }
+        
+        showMessage('📤 Uploading host file...', 'bg-blue-600');
+        
+        const formData = new FormData();
+        formData.append('host_file', file);
+        
+        try {
+            const response = await fetch("{% url 'upload_host' %}", {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.status === 'success' && data.file_url) {
+                showMessage('✅ Host file uploaded successfully. Tracker generated!', 'bg-green-600');
+                
+                // UPDATE: If we have a temperature from server response, update it
+                if (data.temperature) {
+                    updateTemperatureAfterGeneration(data.temperature);
+                }
+                
+                setTimeout(() => {
+                    fetchTrackerHistory();
+                    updateStickyNotes();
+                }, 1000);
+            } else {
+                showMessage(`❌ ${data.message}`, 'bg-red-600');
+                setTimeout(() => {
+                    fetchTrackerHistory();
+                }, 1000);
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            showMessage('❌ Error uploading host file.', 'bg-red-600');
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  }
+  
+  // Function to trigger TEC report upload from empty folder
+  function triggerTecUpload() {
+    console.log('triggerTecUpload called');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx';
+    input.style.display = 'none';
+    input.onchange = async function(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return alert('Please select a file to upload.');
+        }
+        
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            return alert('❌ Please upload an Excel (.xlsx) file.');
+        }
+        
+        // Check if filename contains report indicators and not host
+        const filename = file.name.toLowerCase();
+        if (filename.includes('host')) {
+            return alert('❌ Please upload a REPORT file, not a host file.');
+        }
+        
+        if (!filename.includes('report') && !filename.includes('temp') && !filename.includes('tracker')) {
+            return alert('❌ Please upload a proper REPORT file. File should contain "report", "temp", or "tracker" in name.');
+        }
+        
+        // Prompt for threshold
+        const threshold = prompt('Enter temperature threshold (°C) between 20-50:', '30');
+        if (!threshold) {
+            return alert('Temperature threshold is required.');
+        }
+        
+        const thresholdValue = parseFloat(threshold);
+        if (isNaN(thresholdValue) || thresholdValue < 20 || thresholdValue > 50) {
+            return alert('❌ Threshold must be between 20°C and 50°C.');
+        }
+        
+        showMessage('📤 Uploading TEC report...', 'bg-purple-600');
+        
+        const formData = new FormData();
+        formData.append('tec_report', file);
+        formData.append('threshold', threshold);
+        
+        try {
+            const response = await fetch("{% url 'upload_report' %}", {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.status === 'success') {
+                showMessage('✅ TEC report uploaded successfully. Tracker generated!', 'bg-green-600');
+                
+                // UPDATE: Update temperature threshold for next upload
+                updateTemperatureAfterGeneration(threshold);
+                
+            } else if (data.status === 'pending') {
+                showMessage('⚠️ TEC report uploaded. Please upload Host file to complete tracker generation.', 'bg-yellow-600');
+            } else {
+                showMessage(`❌ ${data.message}`, 'bg-red-600');
+            }
+            
+            setTimeout(() => {
+                fetchTrackerHistory();
+                updateStickyNotes();
+            }, 1000);
+            
+        } catch (err) {
+            console.error('Upload error:', err);
+            showMessage('❌ Error uploading TEC report.', 'bg-red-600');
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  }
+  
+  // Download functions for empty folders
+  function showDownloadOldTracker() {
+    showMessage('⚠️ No old tracker files available to download. Upload a file first.', 'bg-yellow-600');
+  }
+  
+  function showDownloadHostFile() {
+    showMessage('⚠️ No host files available to download. Upload a file first.', 'bg-yellow-600');
+  }
+  
+  function showDownloadReport() {
+    showMessage('⚠️ No report files available to download. Upload a file first.', 'bg-yellow-600');
+  }
+  
+  // Delete functions for empty folders
+  function showDeleteOldTracker() {
+    showMessage('⚠️ No old tracker files available to delete. Folder is already empty.', 'bg-yellow-600');
+  }
+  
+  function showDeleteHostFile() {
+    showMessage('⚠️ No host files available to delete. Folder is already empty.', 'bg-yellow-600');
+  }
+  
+  function showDeleteReport() {
+    showMessage('⚠️ No report files available to delete. Folder is already empty.', 'bg-yellow-600');
+  }
+  
+  // Functions for tracker generated section
+  function showDownloadTrackerGenerated() {
+    showMessage('⚠️ No tracker files available to download. Upload Report and Host file to generate tracker first.', 'bg-yellow-600');
+  }
+  
+  function showDeleteTrackerGenerated() {
+    showMessage('⚠️ No tracker files available to delete. Folder is already empty.', 'bg-yellow-600');
+  }
+  
+  // Function to trigger direct Tracker upload to Tracker Generated section
+  function triggerTrackerUpload() {
+    console.log('triggerTrackerUpload called');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx';
+    input.style.display = 'none';
+    input.onchange = async function(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return alert('Please select a file to upload.');
+        }
+        
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            return alert('❌ Please upload an Excel (.xlsx) file.');
+        }
+        
+        // Check if filename contains tracker indicators
+        const filename = file.name.toLowerCase();
+        if (!filename.includes('tracker') && !filename.includes('temp')) {
+            return alert('❌ Please upload a TRACKER file. File should contain "tracker" or "temp" in name.');
+        }
+        
+        showMessage('📤 Uploading tracker file...', 'bg-green-600');
+        
+          const formData = new FormData();
+          formData.append('tracker_generated_file', file);
+          
+          try {
+              const response = await fetch("/upload-tracker-generated/", {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.status === 'success') {
+                showMessage('✅ Tracker file uploaded successfully!', 'bg-green-600');
+                setTimeout(() => {
+                    fetchTrackerHistory();
+                    updateStickyNotes();
+                }, 1000);
+            } else {
+                showMessage(`❌ ${data.message}`, 'bg-red-600');
+                setTimeout(() => {
+                    fetchTrackerHistory();
+                }, 1000);
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            showMessage('❌ Error uploading tracker file.', 'bg-red-600');
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  }
+  
+  // Function to fix OLD_TRACKER temperatures - removed
+  
+  // Function to load real tracker data with lifecycle management
+  function loadRealTrackerData() {
+    console.log('🔍 Starting to load tracker data...');
+    
+    Promise.all([
+      // Try to load old_tracker.json
+      fetch('old_tracker.json').then(r => r.json()).catch(() => {
+        console.log('❌ Could not load old_tracker.json from root');
+        return {};
+      }),
+      // Try to load tracker_generated.json  
+      fetch('tracker_generated.json').then(r => r.json()).catch(() => {
+        console.log('❌ Could not load tracker_generated.json from root');
+        return {};
+      })
+    ])
+    .then(([oldTrackers, generatedTrackers]) => {
+      console.log('✅ Loaded old tracker data:', oldTrackers);
+      console.log('✅ Loaded generated tracker data:', generatedTrackers);
+      
+      // Clear existing history to rebuild properly
+      tempHistory = [];
+      
+      // Process tracker lifecycle:
+      // 1. Add old trackers as "previous"
+      Object.entries(oldTrackers).forEach(([key, tracker]) => {
+        if (tracker.temperature && tracker.name) {
+          const trackerData = {
+            name: tracker.name,
+            temperature: tracker.temperature,
+            date: tracker.last_updated || new Date().toLocaleString(),
+            id: key + '_old',
+            status: 'old' // Mark as old/previous
+          };
+          tempHistory.push(trackerData);
+          console.log(`📁 Added old tracker: ${tracker.name} - ${tracker.temperature}`);
+        }
+      });
+      
+      // 2. Add generated trackers as "current"
+      Object.entries(generatedTrackers).forEach(([key, tracker]) => {
+        if (tracker.temperature && tracker.name) {
+          const trackerData = {
+            name: tracker.name,
+            temperature: tracker.temperature,
+            date: tracker.last_updated || new Date().toLocaleString(),
+            id: key + '_current',
+            status: 'current' // Mark as current/active
+          };
+          tempHistory.push(trackerData);
+          console.log(`🌡️ Added current tracker: ${tracker.name} - ${tracker.temperature}`);
+        }
+      });
+      
+      console.log('📊 Total trackers loaded:', tempHistory.length);
+      console.log('📊 Tracker history:', tempHistory);
+      
+      // Sort by status (old first, then current)
+      tempHistory.sort((a, b) => {
+        if (a.status === 'old' && b.status === 'current') return -1;
+        if (a.status === 'current' && b.status === 'old') return 1;
+        return 0;
+      });
+      
+      // Update the display
+      updatePreviousTrackerTemp();
+    })
+    .catch(error => {
+      console.log('❌ Could not load tracker data:', error);
+      // Try to get from the sticky notes API instead
+      loadFromStickyNotesAPI();
+    });
+  }
+  
+  // Function to load from sticky notes API
+  function loadFromStickyNotesAPI() {
+    fetch(`{% url 'sticky_notes_data' %}`, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': getCookie('csrftoken')
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        console.log('Loading from sticky notes API:', data);
+        
+        // Add previous tracker if available
+        if (data.previous_tracker && data.previous_tracker.threshold) {
+          const trackerData = {
+            name: data.previous_tracker.filename || 'Previous Tracker',
+            filename: data.previous_tracker.filename, // Include filename for customer name extraction
+            temperature: data.previous_tracker.threshold,
+            date: data.previous_tracker.timestamp || new Date().toLocaleString(),
+            id: 'previous',
+            status: 'old'
+          };
+          tempHistory.push(trackerData);
+        }
+        
+        // Add current tracker if available
+        if (data.last_tracker && data.last_tracker.threshold) {
+          const trackerData = {
+            name: data.last_tracker.filename || 'Current Tracker',
+            filename: data.last_tracker.filename, // Include filename for customer name extraction
+            temperature: data.last_tracker.threshold,
+            date: data.last_tracker.timestamp || new Date().toLocaleString(),
+            id: 'current',
+            status: 'current'
+          };
+          tempHistory.push(trackerData);
+        }
+        
+        updatePreviousTrackerTemp();
+      }
+    })
+    .catch(error => {
+      console.log('Could not load from API:', error);
+    });
+  }
+  
+  // Function to add new tracker when generated
+  function addNewTrackerData(trackerInfo) {
+    const trackerData = {
+      name: trackerInfo.filename || trackerInfo.name || 'New Tracker',
+      filename: trackerInfo.filename,
+      temperature: trackerInfo.threshold || trackerInfo.temperature,
+      date: trackerInfo.timestamp || new Date().toLocaleString(),
+      id: trackerInfo.id || Date.now().toString(),
+      status: trackerInfo.status || 'current'
+    };
+    
+    // Check if this tracker is not already in history
+    const exists = tempHistory.find(t => t.id === trackerData.id);
+    if (!exists) {
+      tempHistory.push(trackerData);
+      console.log(`🌡️ Added new tracker: ${trackerData.name} - ${trackerData.temperature} (${trackerData.status})`);
+    }
+  }
+  
+  // Function to manually refresh temperature data
+  function refreshTemperatureCard() {
+    console.log('🔄 Manually refreshing temperature card...');
+    
+    // Call the sticky notes update which will trigger temperature update
+    updateStickyNotes();
+    
+    // Also try to reload from files
+    setTimeout(() => {
+      loadRealTrackerData();
+    }, 500);
+  }
+  
+  // Hook into existing tracker generation functions
+  // Modify the existing updateStickyNotes function to also update temperature
+  const originalUpdateStickyNotes = updateStickyNotes;
+  updateStickyNotes = async function() {
+    await originalUpdateStickyNotes();
+    
+    // Check if we have new tracker data and extract temperature
+    try {
+      const response = await fetch(`{% url 'sticky_notes_data' %}`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCookie('csrftoken')
+        }
+      });
+      
+      const data = await response.json();
+      if (data.status === 'success') {
+        console.log('🔄 Updating temperature card with new data:', data);
+        
+        // Clear existing history to rebuild with fresh data
+        tempHistory = [];
+        
+        // Check previous tracker temperature
+        if (data.previous_tracker && data.previous_tracker.threshold) {
+          addNewTrackerData({
+            filename: data.previous_tracker.filename,
+            name: data.previous_tracker.filename || 'Previous Tracker',
+            threshold: data.previous_tracker.threshold,
+            timestamp: data.previous_tracker.timestamp,
+            id: 'previous',
+            status: 'old'
+          });
+        }
+        
+        // Check if latest tracker has temperature info
+        if (data.last_tracker && data.last_tracker.threshold) {
+          addNewTrackerData({
+            filename: data.last_tracker.filename,
+            name: data.last_tracker.filename || 'Current Tracker',
+            threshold: data.last_tracker.threshold,
+            timestamp: data.last_tracker.timestamp,
+            id: 'current',
+            status: 'current'
+          });
+        }
+        
+        // Force update the display
+        setTimeout(() => {
+        }, 200); // Small delay to ensure sticky notes are updated first
+      }
+    } catch (err) {
+      console.log('Could not extract temperature from tracker data');
+    }
+  };
+  
+  
+</script>
+{% endblock %}
